@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# build
+dist
+dist-ssr
+*.local
+
+# env
+.env
+.env.local
+.env.*.local
+
+# editor / os
+.DS_Store
+Thumbs.db
+*.log
+logs
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# supabase
+supabase/.branches
+supabase/.temp
+/.claude

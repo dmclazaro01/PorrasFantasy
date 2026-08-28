@@ -1,0 +1,19 @@
+{
+  "name": "La Porra",
+  "short_name": "La Porra",
+  "description": "Porra de futbol privada entre amigos",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf8f2",
+  "theme_color": "#faf8f2",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
