@@ -109,6 +109,9 @@ async function main() {
     status: mapStatus(m.status),
     home_goals: m.score?.fullTime?.home ?? null,
     away_goals: m.score?.fullTime?.away ?? null,
+    ht_home: m.score?.halfTime?.home ?? null,
+    ht_away: m.score?.halfTime?.away ?? null,
+    live_status: m.status,
     is_knockout: false,
   }))
   const { error: upErr } = await db

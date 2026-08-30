@@ -15,7 +15,7 @@ import {
   type Round,
 } from '../lib/api'
 import { supabase } from '../lib/supabase'
-import { Button, Field, Spinner, TeamCrest } from '../ui'
+import { Avatar, Button, Field, Spinner, TeamCrest } from '../ui'
 
 export const CARD_META: Record<
   CardType,
@@ -380,20 +380,22 @@ function PlayCardSheet({
   )
 }
 
-// ---------------- Espía ----------------
+// ---------------- Detalle del partido (marcador en vivo + porras públicas) ----------------
 
-export function SpySheet({
+export function MatchDetailSheet({
   poolId,
   match,
   members,
+  exactPts,
   onClose,
   onCopy,
 }: {
   poolId: string
   match: Match
   members: Member[]
+  exactPts: number
   onClose: () => void
-  onCopy: (home: number, away: number) => void
+  onCopy?: (home: number, away: number) => void
 }) {
   const [rows, setRows] = useState<MatchPrediction[] | null>(null)
   useEffect(() => {
@@ -401,32 +403,101 @@ export function SpySheet({
       .then(setRows)
       .catch(() => setRows([]))
   }, [poolId, match.id])
-  function nameOf(id: string) {
-    return members.find((m) => m.user_id === id)?.display_name ?? '—'
-  }
+
+  const nameOf = (id: string) => members.find((m) => m.user_id === id)?.display_name ?? '—'
+  const avatarOf = (id: string) => members.find((m) => m.user_id === id)?.avatar_url ?? null
+  const started = new Date(match.kickoff).getTime() <= Date.now()
+  const finished = match.status === 'FINISHED'
+  const live = match.status === 'LIVE'
+  const paused = match.live_status === 'PAUSED'
+  const statusLabel = finished ? 'FINAL' : paused ? 'DESCANSO' : live ? 'EN JUEGO' : fmtShort(match.kickoff)
+  const score =
+    started && match.home_goals != null ? `${match.home_goals} – ${match.away_goals}` : '– : –'
+
   return (
-    <Sheet title={`🕵️ ${match.home_team} – ${match.away_team}`} onClose={onClose}>
-      <p className="mt-1 text-sm text-ink-soft">Predicciones de todos. Toca una para copiarla.</p>
+    <Sheet title="Detalle del partido" onClose={onClose}>
+      {/* Cabecera con marcador */}
+      <div className="mt-2 rounded-2xl border border-line bg-surface-2 p-4">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="flex flex-col items-center gap-1.5">
+            <TeamCrest src={match.home_crest} short={match.home_short} size={40} />
+            <span className="line-clamp-2 text-center text-xs font-semibold">{match.home_team}</span>
+          </div>
+          <div className="text-center">
+            <div className="scoreboard text-3xl leading-none">{score}</div>
+            <div
+              className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                live ? 'bg-live-dim text-live' : finished ? 'bg-surface-3 text-ink-soft' : 'bg-surface-3 text-ink-faint'
+              }`}
+            >
+              {live && (
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-live opacity-70" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-live" />
+                </span>
+              )}
+              {statusLabel}
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-1.5">
+            <TeamCrest src={match.away_crest} short={match.away_short} size={40} />
+            <span className="line-clamp-2 text-center text-xs font-semibold">{match.away_team}</span>
+          </div>
+        </div>
+        {match.ht_home != null && (
+          <p className="nums mt-2 text-center text-[11px] text-ink-faint">
+            Descanso: {match.ht_home}–{match.ht_away}
+          </p>
+        )}
+      </div>
+
+      <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">
+        {onCopy ? 'Predicciones (toca para copiar)' : started ? 'Porras de la sala' : 'Predicciones'}
+      </p>
       {rows === null ? (
         <div className="flex justify-center py-8 text-ink-faint">
           <Spinner />
         </div>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-ink-faint">Nadie ha pronosticado este partido.</p>
       ) : (
-        <ul className="mt-4 space-y-2">
-          {rows.map((r) => (
-            <li key={r.user_id}>
-              <button
-                onClick={() => onCopy(r.pred_home, r.pred_away)}
-                className="flex w-full items-center justify-between rounded-xl border border-line-strong bg-surface-2 px-4 py-3 text-left"
-              >
-                <span className="font-semibold">{nameOf(r.user_id)}</span>
-                <span className="nums text-lg font-bold text-primary">
-                  {r.pred_home}–{r.pred_away}
-                </span>
-              </button>
-            </li>
-          ))}
-          {rows.length === 0 && <p className="text-sm text-ink-faint">Nadie ha pronosticado aún.</p>}
+        <ul className="space-y-2">
+          {rows
+            .slice()
+            .sort((a, b) => (b.points ?? -1) - (a.points ?? -1))
+            .map((r) => {
+              const good = (r.points ?? 0) > 0
+              const isExact = (r.points ?? 0) >= exactPts
+              return (
+                <li
+                  key={r.user_id}
+                  className="flex items-center gap-3 rounded-xl border border-line-strong bg-surface-2 px-3 py-2.5"
+                >
+                  <Avatar url={avatarOf(r.user_id)} name={nameOf(r.user_id)} size={30} />
+                  <span className="flex-1 truncate text-sm font-semibold">{nameOf(r.user_id)}</span>
+                  <span className="nums text-base font-bold text-ink">
+                    {r.pred_home}–{r.pred_away}
+                  </span>
+                  {finished && (
+                    <span
+                      className={`nums rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
+                        good ? (isExact ? 'grad-gold text-on-primary' : 'bg-win text-on-primary') : 'bg-surface-3 text-ink-faint'
+                      }`}
+                    >
+                      {good ? `+${r.points}` : '0'}
+                    </span>
+                  )}
+                  {onCopy && (
+                    <button
+                      onClick={() => onCopy(r.pred_home, r.pred_away)}
+                      className="rounded-lg bg-primary-dim px-2 py-1 text-[11px] font-bold text-primary"
+                    >
+                      copiar
+                    </button>
+                  )}
+                </li>
+              )
+            })}
         </ul>
       )}
     </Sheet>

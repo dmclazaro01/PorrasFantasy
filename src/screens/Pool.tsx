@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   ensureMyCard,
-  getLatestRound,
   getMatches,
   getMyPredictions,
   getMembers,
@@ -11,6 +10,7 @@ import {
   getRoundStandings,
   getStandings,
   getVisibleCards,
+  listRounds,
   savePrediction,
   type Card,
   type Match,
@@ -21,7 +21,7 @@ import {
   type Standing,
 } from '../lib/api'
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
-import { CARD_META, CartasSection, SpySheet } from '../components/Cards'
+import { CARD_META, CartasSection, MatchDetailSheet } from '../components/Cards'
 
 type Section = 'predicciones' | 'ranking' | 'cartas'
 
@@ -29,8 +29,11 @@ export default function Pool() {
   const { id = '' } = useParams()
   const [pool, setPool] = useState<PoolType | null>(null)
   const [section, setSection] = useState<Section>('predicciones')
-  const [round, setRound] = useState<Round | null | undefined>(undefined)
+  const [rounds, setRounds] = useState<Round[]>([])
+  const [selectedRoundId, setSelectedRoundId] = useState<number | null>(null)
+  const [latestRound, setLatestRound] = useState<Round | null>(null)
   const [myCard, setMyCard] = useState<Card | null>(null)
+  const [loadedRounds, setLoadedRounds] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -42,15 +45,22 @@ export default function Pool() {
 
   useEffect(() => {
     if (!pool) return
-    if (!pool.competition_id) return setRound(null)
-    getLatestRound(pool.competition_id).then((r) => {
-      setRound(r)
-      if (r) ensureMyCard(pool.id, r.id).then(setMyCard).catch(() => {})
+    if (!pool.competition_id) {
+      setLoadedRounds(true)
+      return
+    }
+    listRounds(pool.competition_id).then((rs) => {
+      setRounds(rs)
+      const latest = rs[rs.length - 1] ?? null
+      setLatestRound(latest)
+      setSelectedRoundId(latest?.id ?? null)
+      setLoadedRounds(true)
+      if (latest) ensureMyCard(pool.id, latest.id).then(setMyCard).catch(() => {})
     })
   }, [pool])
 
   function refreshCard() {
-    if (pool && round) ensureMyCard(pool.id, round.id).then(setMyCard).catch(() => {})
+    if (pool && latestRound) ensureMyCard(pool.id, latestRound.id).then(setMyCard).catch(() => {})
   }
 
   async function share() {
@@ -87,6 +97,8 @@ export default function Pool() {
     )
   }
 
+  const selectedRound = rounds.find((r) => r.id === selectedRoundId) ?? null
+
   return (
     <div className="flex flex-1 flex-col">
       <ScreenHeader
@@ -108,14 +120,56 @@ export default function Pool() {
       />
 
       <div className="flex-1 px-4 pb-24 pt-4">
-        {section === 'predicciones' && <PrediccionesSection pool={pool} round={round} />}
-        {section === 'ranking' && <RankingSection pool={pool} round={round} />}
+        {section !== 'cartas' && (
+          <RoundSwitcher rounds={rounds} selectedId={selectedRoundId} onSelect={setSelectedRoundId} />
+        )}
+        {section === 'predicciones' &&
+          (loadedRounds ? (
+            <PrediccionesSection pool={pool} round={selectedRound} />
+          ) : (
+            <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
+          ))}
+        {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
         {section === 'cartas' && (
-          <CartasSection pool={pool} round={round ?? null} myCard={myCard} onCardChanged={refreshCard} />
+          <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
         )}
       </div>
 
       <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
+    </div>
+  )
+}
+
+function RoundSwitcher({
+  rounds,
+  selectedId,
+  onSelect,
+}: {
+  rounds: Round[]
+  selectedId: number | null
+  onSelect: (id: number) => void
+}) {
+  if (rounds.length <= 1) return null
+  const idx = rounds.findIndex((r) => r.id === selectedId)
+  return (
+    <div className="mb-3 flex items-center justify-between rounded-2xl border border-line bg-surface-2 px-2 py-1.5">
+      <button
+        disabled={idx <= 0}
+        onClick={() => idx > 0 && onSelect(rounds[idx - 1].id)}
+        className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft disabled:opacity-30"
+        aria-label="Jornada anterior"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      </button>
+      <span className="text-sm font-bold">{rounds[idx]?.name ?? 'Jornada'}</span>
+      <button
+        disabled={idx >= rounds.length - 1}
+        onClick={() => idx < rounds.length - 1 && onSelect(rounds[idx + 1].id)}
+        className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft disabled:opacity-30"
+        aria-label="Jornada siguiente"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+      </button>
     </div>
   )
 }
@@ -147,9 +201,7 @@ function PoolNav({
           >
             <span className="text-lg leading-none">{it.emoji}</span>
             {it.label}
-            {it.dot && (
-              <span className="absolute right-[26%] top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" />
-            )}
+            {it.dot && <span className="absolute right-[26%] top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" />}
           </button>
         ))}
       </div>
@@ -157,7 +209,7 @@ function PoolNav({
   )
 }
 
-// ---------------- Predicciones (autoguardado) ----------------
+// ---------------- Predicciones ----------------
 
 function fmtKickoff(iso: string) {
   return new Date(iso).toLocaleString('es-ES', {
@@ -169,7 +221,7 @@ function fmtTime(iso: string) {
 }
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | null | undefined }) {
+function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | null }) {
   const [matches, setMatches] = useState<Match[]>([])
   const [preds, setPreds] = useState<Record<number, Prediction>>({})
   const [inputs, setInputs] = useState<Record<number, { h: string; a: string }>>({})
@@ -177,8 +229,9 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
   const [cards, setCards] = useState<Card[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [status, setStatus] = useState<SaveStatus>('idle')
-  const [spyMatch, setSpyMatch] = useState<Match | null>(null)
+  const [detail, setDetail] = useState<{ match: Match; copy: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const inputsRef = useRef(inputs)
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
@@ -186,9 +239,13 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
   useEffect(() => {
     let alive = true
     async function load() {
+      setLoading(true)
       const { data } = await supabase.auth.getUser()
       const uid = data.user?.id ?? ''
-      if (!round) return
+      if (!round) {
+        if (alive) setLoading(false)
+        return
+      }
       const ms = await getMatches(round.id)
       const [ps, vc, mem] = await Promise.all([
         getMyPredictions(pool.id, uid, ms.map((m) => m.id)),
@@ -208,12 +265,31 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
       }
       inputsRef.current = seed
       setInputs(seed)
+      setLoading(false)
     }
-    load().catch((e) => setError((e as Error).message))
+    load().catch((e) => {
+      setError((e as Error).message)
+      setLoading(false)
+    })
     return () => {
       alive = false
     }
-  }, [pool.id, round])
+  }, [pool.id, round?.id])
+
+  // Refresco en vivo: marcadores, estado y cartas reveladas (sin tocar lo que estás escribiendo)
+  useEffect(() => {
+    if (!round) return
+    const iv = setInterval(() => {
+      getMatches(round.id)
+        .then((ms) => {
+          setMatches(ms)
+          if (userId) getMyPredictions(pool.id, userId, ms.map((m) => m.id)).then(setPreds).catch(() => {})
+          getVisibleCards(pool.id, round.id).then(setCards).catch(() => {})
+        })
+        .catch(() => {})
+    }, 30000)
+    return () => clearInterval(iv)
+  }, [round?.id, userId, pool.id])
 
   function isEditable(m: Match) {
     return m.status === 'SCHEDULED' && new Date(m.kickoff).getTime() > Date.now()
@@ -227,10 +303,7 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
     setStatus('saving')
     try {
       await savePrediction(pool.id, userId, matchId, Number(i.h), Number(i.a))
-      setPreds((p) => ({
-        ...p,
-        [matchId]: { match_id: matchId, pred_home: Number(i.h), pred_away: Number(i.a), points: null },
-      }))
+      setPreds((p) => ({ ...p, [matchId]: { match_id: matchId, pred_home: Number(i.h), pred_away: Number(i.a), points: null } }))
       setStatus('saved')
       setTimeout(() => setStatus((s) => (s === 'saved' ? 'idle' : s)), 1600)
     } catch {
@@ -249,7 +322,7 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
     timers.current[matchId] = setTimeout(() => autosave(matchId), 700)
   }
 
-  function copyFromSpy(matchId: number, h: number, a: number) {
+  function copyPred(matchId: number, h: number, a: number) {
     setInputs((s) => {
       const next = { ...s, [matchId]: { h: String(h), a: String(a) } }
       inputsRef.current = next
@@ -263,21 +336,16 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
     for (const c of cards) if (c.status === 'PLAYED' && c.match_id) (map[c.match_id] ||= []).push(c)
     return map
   }, [cards])
-
   const myEspia = cards.find((c) => c.type === 'ESPIA' && c.status === 'PLAYED' && c.owner_id === userId)
 
-  if (round === undefined) {
-    return (
-      <div className="flex justify-center py-12 text-ink-faint">
-        <Spinner />
-      </div>
-    )
+  if (loading) {
+    return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
   if (!round) {
     return (
       <div className="ticket mt-2">
         <EmptyState title="Aún no hay jornada cargada">
-          En cuanto se cargue la próxima jornada aparecerán aquí los partidos.
+          En cuanto se cargue la jornada aparecerán aquí los partidos.
         </EmptyState>
       </div>
     )
@@ -296,9 +364,7 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
       <div className="ticket overflow-hidden">
         <div className="grad-hero flex items-center justify-between px-4 py-3.5 text-white">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
-              {round.name} · LaLiga
-            </div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">{round.name} · LaLiga</div>
             <h2 className="mt-0.5 text-lg text-white">Tus predicciones</h2>
           </div>
           <div className="scoreboard rounded-xl bg-black/25 px-3 py-1.5 text-center">
@@ -325,8 +391,8 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
                 cardsForMatch={cardsByMatch[m.id] ?? []}
                 members={members}
                 espiaActive={espiaActive}
-                onSpy={() => setSpyMatch(m)}
                 onInput={(side, v) => setInput(m.id, side, v)}
+                onOpenDetail={(copy) => setDetail({ match: m, copy })}
               />
             )
           })}
@@ -335,16 +401,21 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
 
       {error && <p className="mt-3 text-sm font-medium text-loss">{error}</p>}
 
-      {spyMatch && (
-        <SpySheet
+      {detail && (
+        <MatchDetailSheet
           poolId={pool.id}
-          match={spyMatch}
+          match={detail.match}
           members={members}
-          onClose={() => setSpyMatch(null)}
-          onCopy={(h, a) => {
-            copyFromSpy(spyMatch.id, h, a)
-            setSpyMatch(null)
-          }}
+          exactPts={pool.points_exact}
+          onClose={() => setDetail(null)}
+          onCopy={
+            detail.copy
+              ? (h, a) => {
+                  copyPred(detail.match.id, h, a)
+                  setDetail(null)
+                }
+              : undefined
+          }
         />
       )}
     </div>
@@ -355,9 +426,7 @@ function TeamCol({ crest, short, name }: { crest: string | null; short: string |
   return (
     <div className="flex min-w-0 flex-col items-center gap-1.5">
       <TeamCrest src={crest} short={short} size={44} />
-      <span className="line-clamp-2 w-full text-center text-xs font-semibold leading-tight text-ink">
-        {name}
-      </span>
+      <span className="line-clamp-2 w-full text-center text-xs font-semibold leading-tight text-ink">{name}</span>
     </div>
   )
 }
@@ -421,8 +490,8 @@ function MatchRow({
   cardsForMatch,
   members,
   espiaActive,
-  onSpy,
   onInput,
+  onOpenDetail,
 }: {
   match: Match
   pred?: Prediction
@@ -432,12 +501,13 @@ function MatchRow({
   cardsForMatch: Card[]
   members: Member[]
   espiaActive: boolean
-  onSpy: () => void
   onInput: (side: 'h' | 'a', v: string) => void
+  onOpenDetail: (copy: boolean) => void
 }) {
   const started = new Date(match.kickoff).getTime() <= Date.now()
   const live = match.status === 'LIVE'
   const finished = match.status === 'FINISHED'
+  const paused = match.live_status === 'PAUSED'
   const tone: 'final' | 'live' | 'idle' = live ? 'live' : finished ? 'final' : 'idle'
   const homeShown = editable ? input?.h ?? '' : match.home_goals != null ? String(match.home_goals) : ''
   const awayShown = editable ? input?.a ?? '' : match.away_goals != null ? String(match.away_goals) : ''
@@ -448,7 +518,7 @@ function MatchRow({
         <span className="nums text-xs font-semibold text-ink-faint">
           {editable ? `Cierra ${fmtTime(match.kickoff)}` : fmtKickoff(match.kickoff)}
         </span>
-        <StatusTag status={match.status} started={started} />
+        <StatusTag status={match.status} started={started} paused={paused} />
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
@@ -468,10 +538,10 @@ function MatchRow({
           ))}
           {espiaActive && (
             <button
-              onClick={onSpy}
+              onClick={() => onOpenDetail(true)}
               className="inline-flex items-center gap-1 rounded-full bg-primary-dim px-2.5 py-0.5 text-[11px] font-bold text-primary"
             >
-              🕵️ Ver predicciones
+              🕵️ Ver y copiar
             </button>
           )}
         </div>
@@ -485,22 +555,25 @@ function MatchRow({
               {pred ? `${pred.pred_home}–${pred.pred_away}` : '—'}
             </span>
           </span>
-          {finished ? (
-            <PointsStamp points={pred?.points ?? 0} exactPts={exactPts} />
-          ) : live ? (
-            <span className="text-xs font-bold text-live">puntos al pitido final</span>
-          ) : (
-            <span className="text-xs font-medium text-ink-faint">cerrado</span>
-          )}
+          <div className="flex items-center gap-2">
+            {finished ? (
+              <PointsStamp points={pred?.points ?? 0} exactPts={exactPts} />
+            ) : live ? (
+              <span className="text-xs font-bold text-live">en juego</span>
+            ) : null}
+            <button onClick={() => onOpenDetail(false)} className="text-xs font-bold text-primary">
+              Ver porras ›
+            </button>
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-function StatusTag({ status, started }: { status: Match['status']; started: boolean }) {
+function StatusTag({ status, started, paused }: { status: Match['status']; started: boolean; paused: boolean }) {
   const label =
-    status === 'LIVE' ? 'EN JUEGO' : status === 'FINISHED' ? 'FINAL' : started ? 'CERRADO' : 'ABIERTO'
+    status === 'LIVE' ? (paused ? 'DESCANSO' : 'EN JUEGO') : status === 'FINISHED' ? 'FINAL' : started ? 'CERRADO' : 'ABIERTO'
   const cls =
     status === 'LIVE'
       ? 'text-live bg-live-dim'
@@ -511,7 +584,7 @@ function StatusTag({ status, started }: { status: Match['status']; started: bool
           : 'text-primary bg-primary-dim'
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
-      {status === 'LIVE' && (
+      {status === 'LIVE' && !paused && (
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-live opacity-70" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-live" />
@@ -546,16 +619,21 @@ function PointsStamp({ points, exactPts }: { points: number; exactPts: number })
 
 const MEDAL = ['🥇', '🥈', '🥉']
 
-function RankingSection({ pool, round }: { pool: PoolType; round: Round | null | undefined }) {
+function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }) {
   const [scope, setScope] = useState<'general' | 'jornada'>('general')
   const [general, setGeneral] = useState<Standing[] | null>(null)
   const [jornada, setJornada] = useState<Standing[] | null>(null)
 
   useEffect(() => {
-    getStandings(pool.id).then(setGeneral).catch(() => setGeneral([]))
-    if (round) getRoundStandings(pool.id, round.id).then(setJornada).catch(() => setJornada([]))
-    else setJornada([])
-  }, [pool.id, round])
+    function load() {
+      getStandings(pool.id).then(setGeneral).catch(() => setGeneral([]))
+      if (round) getRoundStandings(pool.id, round.id).then(setJornada).catch(() => setJornada([]))
+      else setJornada([])
+    }
+    load()
+    const iv = setInterval(load, 30000) // refresco en vivo del ranking
+    return () => clearInterval(iv)
+  }, [pool.id, round?.id])
 
   const rows = scope === 'general' ? general : jornada
 
@@ -564,17 +642,13 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null |
       <div className="mb-3 flex gap-1 rounded-2xl bg-surface-2 p-1">
         <button
           onClick={() => setScope('general')}
-          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${
-            scope === 'general' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'
-          }`}
+          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'general' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
         >
           General
         </button>
         <button
           onClick={() => setScope('jornada')}
-          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${
-            scope === 'jornada' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'
-          }`}
+          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'jornada' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
         >
           {round?.name ?? 'Jornada'}
         </button>
@@ -586,18 +660,12 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null |
 
 function StandingsList({ rows }: { rows: Standing[] | null }) {
   if (rows === null) {
-    return (
-      <div className="flex justify-center py-12 text-ink-faint">
-        <Spinner />
-      </div>
-    )
+    return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
   if (rows.length === 0) {
     return (
       <div className="ticket mt-2">
-        <EmptyState title="Sin puntos por ahora">
-          Sumaréis en cuanto se juegue el primer partido.
-        </EmptyState>
+        <EmptyState title="Sin puntos por ahora">Sumaréis en cuanto se juegue el primer partido.</EmptyState>
       </div>
     )
   }
@@ -608,9 +676,7 @@ function StandingsList({ rows }: { rows: Standing[] | null }) {
         return (
           <li
             key={r.user_id}
-            className={`flex items-center gap-3 rounded-2xl border p-3 ${
-              i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'
-            }`}
+            className={`flex items-center gap-3 rounded-2xl border p-3 ${i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'}`}
           >
             <span className={`grid w-7 shrink-0 place-items-center text-lg ${podium ? '' : 'nums text-sm font-bold text-ink-faint'}`}>
               {podium ? MEDAL[i] : i + 1}
@@ -618,9 +684,7 @@ function StandingsList({ rows }: { rows: Standing[] | null }) {
             <Avatar url={r.avatar_url} name={r.display_name} size={38} />
             <div className="min-w-0 flex-1">
               <p className="truncate font-bold">{r.display_name}</p>
-              <p className="nums text-xs text-ink-faint">
-                {r.exacts} exactos · {r.partials} aciertos
-              </p>
+              <p className="nums text-xs text-ink-faint">{r.exacts} exactos · {r.partials} aciertos</p>
             </div>
             <span className="scoreboard text-2xl text-primary">{r.points}</span>
           </li>

@@ -24,7 +24,10 @@ const COMPETITION = 'PD' // Primera Division
 interface FdMatch {
   id: number
   status: string
-  score?: { fullTime?: { home: number | null; away: number | null } }
+  score?: {
+    fullTime?: { home: number | null; away: number | null }
+    halfTime?: { home: number | null; away: number | null }
+  }
 }
 
 function mapStatus(s: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' {
@@ -69,6 +72,9 @@ Deno.serve(async (_req: Request) => {
           status: mapStatus(m.status),
           home_goals: m.score?.fullTime?.home ?? null,
           away_goals: m.score?.fullTime?.away ?? null,
+          ht_home: m.score?.halfTime?.home ?? null,
+          ht_away: m.score?.halfTime?.away ?? null,
+          live_status: m.status,
         })
         .eq('api_fixture_id', m.id)
       if (!error) updated++

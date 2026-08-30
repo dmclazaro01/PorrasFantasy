@@ -108,6 +108,9 @@ export interface Match {
   status: MatchStatus
   home_goals: number | null
   away_goals: number | null
+  ht_home: number | null
+  ht_away: number | null
+  live_status: string | null
   is_knockout: boolean
 }
 
@@ -129,6 +132,16 @@ export async function getLatestRound(competitionId: number): Promise<Round | nul
     .maybeSingle()
   if (error) throw error
   return data
+}
+
+export async function listRounds(competitionId: number): Promise<Round[]> {
+  const { data, error } = await supabase
+    .from('rounds')
+    .select('*')
+    .eq('competition_id', competitionId)
+    .order('deadline', { ascending: true, nullsFirst: true })
+  if (error) throw error
+  return (data ?? []) as Round[]
 }
 
 export async function getMatches(roundId: number): Promise<Match[]> {
@@ -291,13 +304,14 @@ export interface MatchPrediction {
   user_id: string
   pred_home: number
   pred_away: number
+  points: number | null
 }
 
 /** Predicciones de un partido visibles para el usuario (RLS: propio / tras kickoff / prensa / espía). */
 export async function getMatchPredictions(poolId: string, matchId: number): Promise<MatchPrediction[]> {
   const { data, error } = await supabase
     .from('predictions')
-    .select('user_id, pred_home, pred_away')
+    .select('user_id, pred_home, pred_away, points')
     .eq('pool_id', poolId)
     .eq('match_id', matchId)
   if (error) throw error
