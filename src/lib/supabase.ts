@@ -19,6 +19,9 @@ if (!anon) {
 export const supabase = createClient(proxyBase, anon ?? '', {
   db: { schema: 'porra' },
   auth: {
+    // Clave de sesión FIJA (independiente del dominio), para que un cambio de
+    // dominio no cierre la sesión de todos.
+    storageKey: 'porra-fantasy-auth',
     persistSession: true,
     autoRefreshToken: true,
   },
