@@ -1,10 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listMyPools, type Pool } from '../lib/api'
-import { Button, EmptyState, Spinner } from '../ui'
+import { supabase } from '../lib/supabase'
+import { getProfile, listMyPools, type Pool, type Profile } from '../lib/api'
+import { Avatar, Button, EmptyState, Spinner } from '../ui'
+import { InstallBanner } from '../components/InstallBanner'
+
+const GRADS = [
+  'linear-gradient(135deg,#c2ff3d,#38e08a)',
+  'linear-gradient(135deg,#35e0ff,#5b8cff)',
+  'linear-gradient(135deg,#ff3d9a,#ff9f43)',
+  'linear-gradient(135deg,#ffce3a,#ff5470)',
+  'linear-gradient(135deg,#8b5cf6,#ff3d9a)',
+  'linear-gradient(135deg,#38e08a,#35e0ff)',
+]
+function gradFor(id: string) {
+  let n = 0
+  for (const c of id) n = (n + c.charCodeAt(0)) % GRADS.length
+  return GRADS[n]
+}
 
 export default function Home() {
   const [pools, setPools] = useState<Pool[] | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -14,31 +31,33 @@ export default function Home() {
         setError(e.message ?? 'Error cargando salas')
         setPools([])
       })
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user
+      if (u) getProfile(u.id).then(setProfile).catch(() => {})
+    })
   }, [])
+
+  const name = profile?.display_name ?? 'Tú'
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="safe-top px-5 pb-2 pt-4">
+      <header className="safe-top px-5 pb-1 pt-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-faint">
-              La Porra
-            </p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">La Porra ⚽</p>
             <h1 className="text-2xl font-bold">Tus porras</h1>
           </div>
-          <Link
-            to="/perfil"
-            className="nums grid h-10 w-10 place-items-center rounded-xl bg-ink text-sm font-bold text-paper"
-            aria-label="Perfil"
-          >
-            LP
+          <Link to="/perfil" aria-label="Perfil">
+            <Avatar url={profile?.avatar_url} name={name} size={44} />
           </Link>
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-2.5 px-5 pt-2">
+      <InstallBanner />
+
+      <div className="grid grid-cols-2 gap-2.5 px-5 pt-3">
         <Link to="/crear" className="block">
-          <Button full>Crear porra</Button>
+          <Button full>+ Crear porra</Button>
         </Link>
         <Link to="/unirse" className="block">
           <Button full variant="secondary">
@@ -47,13 +66,13 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="flex-1 px-5 pb-4">
+      <div className="flex-1 px-5 pb-4 pt-3">
         {pools === null ? (
           <div className="flex justify-center py-16 text-ink-faint">
             <Spinner />
           </div>
         ) : pools.length === 0 ? (
-          <div className="ticket mt-4">
+          <div className="ticket mt-2">
             <EmptyState
               title="Aún no tienes ninguna porra"
               icon={
@@ -65,21 +84,20 @@ export default function Home() {
             >
               Crea una nueva o únete con el código que te pase un amigo.
             </EmptyState>
-            {error && (
-              <p className="px-6 pb-5 text-center text-xs text-loss">
-                {error} — ¿está la base de datos configurada?
-              </p>
-            )}
+            {error && <p className="px-6 pb-5 text-center text-xs text-loss">{error}</p>}
           </div>
         ) : (
-          <ul className="mt-3 space-y-3">
+          <ul className="space-y-3">
             {pools.map((p) => (
               <li key={p.id}>
                 <Link
                   to={`/sala/${p.id}`}
-                  className="ticket flex items-center gap-4 p-4 transition-transform active:scale-[0.99]"
+                  className="card flex items-center gap-3.5 p-3.5 transition-transform active:scale-[0.99]"
                 >
-                  <span className="nums grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-accent-wash text-lg font-bold text-accent-strong">
+                  <span
+                    className="nums grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-lg font-bold text-on-primary"
+                    style={{ backgroundImage: gradFor(p.id) }}
+                  >
                     {p.name.slice(0, 2).toUpperCase()}
                   </span>
                   <div className="min-w-0 flex-1">

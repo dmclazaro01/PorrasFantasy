@@ -1,28 +1,38 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
+  ensureMyCard,
   getLatestRound,
   getMatches,
   getMyPredictions,
+  getMembers,
   getPool,
+  getRoundStandings,
   getStandings,
+  getVisibleCards,
   savePrediction,
+  type Card,
   type Match,
+  type Member,
   type Pool as PoolType,
   type Prediction,
   type Round,
   type Standing,
 } from '../lib/api'
-import { Button, EmptyState, ScreenHeader, Spinner } from '../ui'
+import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
+import { CARD_META, CartasSection, SpySheet } from '../components/Cards'
 
-type Tab = 'boleto' | 'ranking'
+type Section = 'predicciones' | 'ranking' | 'cartas'
 
 export default function Pool() {
   const { id = '' } = useParams()
   const [pool, setPool] = useState<PoolType | null>(null)
-  const [tab, setTab] = useState<Tab>('boleto')
+  const [section, setSection] = useState<Section>('predicciones')
+  const [round, setRound] = useState<Round | null | undefined>(undefined)
+  const [myCard, setMyCard] = useState<Card | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     getPool(id)
@@ -30,9 +40,22 @@ export default function Pool() {
       .catch(() => setNotFound(true))
   }, [id])
 
+  useEffect(() => {
+    if (!pool) return
+    if (!pool.competition_id) return setRound(null)
+    getLatestRound(pool.competition_id).then((r) => {
+      setRound(r)
+      if (r) ensureMyCard(pool.id, r.id).then(setMyCard).catch(() => {})
+    })
+  }, [pool])
+
+  function refreshCard() {
+    if (pool && round) ensureMyCard(pool.id, round.id).then(setMyCard).catch(() => {})
+  }
+
   async function share() {
     if (!pool) return
-    const text = `Únete a mi porra "${pool.name}" con el código ${pool.invite_code}`
+    const text = `Únete a mi porra "${pool.name}" con el código ${pool.invite_code} 👉 ${window.location.origin}`
     if (navigator.share) {
       try {
         await navigator.share({ title: 'La Porra', text })
@@ -41,6 +64,8 @@ export default function Pool() {
       }
     } else {
       await navigator.clipboard.writeText(pool.invite_code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
     }
   }
 
@@ -54,7 +79,6 @@ export default function Pool() {
       </div>
     )
   }
-
   if (!pool) {
     return (
       <div className="flex flex-1 items-center justify-center text-ink-faint">
@@ -68,132 +92,179 @@ export default function Pool() {
       <ScreenHeader
         title={pool.name}
         back="/"
+        gradient
         action={
           <button
             onClick={share}
-            className="nums flex items-center gap-1.5 rounded-xl bg-paper-2 px-3 py-2 text-sm font-bold text-ink-soft hover:bg-paper-3"
+            className="nums flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold text-white hover:bg-white/25"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
               <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
             </svg>
-            {pool.invite_code}
+            {copied ? '¡copiado!' : pool.invite_code}
           </button>
         }
       />
 
-      <div className="px-5 pt-4">
-        <div className="flex gap-1 rounded-2xl bg-paper-2 p-1">
-          {(['boleto', 'ranking'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`min-h-10 flex-1 rounded-xl text-sm font-semibold capitalize transition-colors ${
-                tab === t ? 'bg-paper text-ink shadow-sm' : 'text-ink-faint'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+      <div className="flex-1 px-4 pb-24 pt-4">
+        {section === 'predicciones' && <PrediccionesSection pool={pool} round={round} />}
+        {section === 'ranking' && <RankingSection pool={pool} round={round} />}
+        {section === 'cartas' && (
+          <CartasSection pool={pool} round={round ?? null} myCard={myCard} onCardChanged={refreshCard} />
+        )}
       </div>
 
-      <div className="flex-1 px-5 py-4">
-        {tab === 'boleto' ? <BoletoTab pool={pool} /> : <RankingTab poolId={pool.id} />}
-      </div>
+      <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
     </div>
   )
 }
 
-// ---------------- Boleto ----------------
-
-function fmtKickoff(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleString('es-ES', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+function PoolNav({
+  section,
+  setSection,
+  hasCard,
+}: {
+  section: Section
+  setSection: (s: Section) => void
+  hasCard: boolean
+}) {
+  const items: { key: Section; label: string; emoji: string; dot?: boolean }[] = [
+    { key: 'predicciones', label: 'Predicciones', emoji: '📝' },
+    { key: 'ranking', label: 'Ranking', emoji: '🏆' },
+    { key: 'cartas', label: 'Cartas', emoji: '🃏', dot: hasCard },
+  ]
+  return (
+    <nav className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
+      <div className="flex">
+        {items.map((it) => (
+          <button
+            key={it.key}
+            onClick={() => setSection(it.key)}
+            className={`relative flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-bold transition-colors ${
+              section === it.key ? 'text-primary' : 'text-ink-faint'
+            }`}
+          >
+            <span className="text-lg leading-none">{it.emoji}</span>
+            {it.label}
+            {it.dot && (
+              <span className="absolute right-[26%] top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" />
+            )}
+          </button>
+        ))}
+      </div>
+    </nav>
+  )
 }
 
-function BoletoTab({ pool }: { pool: PoolType }) {
-  const [round, setRound] = useState<Round | null | undefined>(undefined)
+// ---------------- Predicciones (autoguardado) ----------------
+
+function fmtKickoff(iso: string) {
+  return new Date(iso).toLocaleString('es-ES', {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+}
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | null | undefined }) {
   const [matches, setMatches] = useState<Match[]>([])
   const [preds, setPreds] = useState<Record<number, Prediction>>({})
   const [inputs, setInputs] = useState<Record<number, { h: string; a: string }>>({})
-  const [userId, setUserId] = useState<string>('')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [userId, setUserId] = useState('')
+  const [cards, setCards] = useState<Card[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [status, setStatus] = useState<SaveStatus>('idle')
+  const [spyMatch, setSpyMatch] = useState<Match | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const inputsRef = useRef(inputs)
+  const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     let alive = true
     async function load() {
       const { data } = await supabase.auth.getUser()
-      if (alive) setUserId(data.user?.id ?? '')
-      if (!pool.competition_id) {
-        setRound(null)
-        return
-      }
-      const r = await getLatestRound(pool.competition_id)
+      const uid = data.user?.id ?? ''
+      if (!round) return
+      const ms = await getMatches(round.id)
+      const [ps, vc, mem] = await Promise.all([
+        getMyPredictions(pool.id, uid, ms.map((m) => m.id)),
+        getVisibleCards(pool.id, round.id),
+        getMembers(pool.id),
+      ])
       if (!alive) return
-      setRound(r)
-      if (!r) return
-      const ms = await getMatches(r.id)
-      const ps = await getMyPredictions(pool.id, ms.map((m) => m.id))
-      if (!alive) return
+      setUserId(uid)
       setMatches(ms)
       setPreds(ps)
+      setCards(vc)
+      setMembers(mem)
       const seed: Record<number, { h: string; a: string }> = {}
       for (const m of ms) {
         const p = ps[m.id]
-        seed[m.id] = {
-          h: p ? String(p.pred_home) : '',
-          a: p ? String(p.pred_away) : '',
-        }
+        seed[m.id] = { h: p ? String(p.pred_home) : '', a: p ? String(p.pred_away) : '' }
       }
+      inputsRef.current = seed
       setInputs(seed)
     }
     load().catch((e) => setError((e as Error).message))
     return () => {
       alive = false
     }
-  }, [pool.id, pool.competition_id])
+  }, [pool.id, round])
 
-  const now = Date.now()
-  const editable = useMemo(
-    () => matches.filter((m) => m.status === 'SCHEDULED' && new Date(m.kickoff).getTime() > now),
-    [matches, now],
-  )
+  function isEditable(m: Match) {
+    return m.status === 'SCHEDULED' && new Date(m.kickoff).getTime() > Date.now()
+  }
+
+  async function autosave(matchId: number) {
+    const m = matches.find((x) => x.id === matchId)
+    if (!m || !isEditable(m) || !userId) return
+    const i = inputsRef.current[matchId]
+    if (!i || i.h === '' || i.a === '') return
+    setStatus('saving')
+    try {
+      await savePrediction(pool.id, userId, matchId, Number(i.h), Number(i.a))
+      setPreds((p) => ({
+        ...p,
+        [matchId]: { match_id: matchId, pred_home: Number(i.h), pred_away: Number(i.a), points: null },
+      }))
+      setStatus('saved')
+      setTimeout(() => setStatus((s) => (s === 'saved' ? 'idle' : s)), 1600)
+    } catch {
+      setStatus('error')
+    }
+  }
 
   function setInput(matchId: number, side: 'h' | 'a', val: string) {
     const clean = val.replace(/\D/g, '').slice(0, 2)
-    setInputs((s) => ({ ...s, [matchId]: { ...s[matchId], [side]: clean } }))
-    setSaved(false)
+    setInputs((s) => {
+      const next = { ...s, [matchId]: { ...s[matchId], [side]: clean } }
+      inputsRef.current = next
+      return next
+    })
+    clearTimeout(timers.current[matchId])
+    timers.current[matchId] = setTimeout(() => autosave(matchId), 700)
   }
 
-  async function save() {
-    setSaving(true)
-    setError(null)
-    try {
-      for (const m of editable) {
-        const i = inputs[m.id]
-        if (i && i.h !== '' && i.a !== '') {
-          await savePrediction(pool.id, userId, m.id, Number(i.h), Number(i.a))
-        }
-      }
-      // recarga pronósticos guardados
-      const ps = await getMyPredictions(pool.id, matches.map((m) => m.id))
-      setPreds(ps)
-      setSaved(true)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
+  function copyFromSpy(matchId: number, h: number, a: number) {
+    setInputs((s) => {
+      const next = { ...s, [matchId]: { h: String(h), a: String(a) } }
+      inputsRef.current = next
+      return next
+    })
+    autosave(matchId)
   }
+
+  const cardsByMatch = useMemo(() => {
+    const map: Record<number, Card[]> = {}
+    for (const c of cards) if (c.status === 'PLAYED' && c.match_id) (map[c.match_id] ||= []).push(c)
+    return map
+  }, [cards])
+
+  const myEspia = cards.find((c) => c.type === 'ESPIA' && c.status === 'PLAYED' && c.owner_id === userId)
 
   if (round === undefined) {
     return (
@@ -202,78 +273,104 @@ function BoletoTab({ pool }: { pool: PoolType }) {
       </div>
     )
   }
-
   if (!round) {
     return (
       <div className="ticket mt-2">
         <EmptyState title="Aún no hay jornada cargada">
-          En cuanto se cargue la próxima jornada aparecerán aquí los partidos para tu boleto.
+          En cuanto se cargue la próxima jornada aparecerán aquí los partidos.
         </EmptyState>
       </div>
     )
   }
 
+  const statusText =
+    status === 'saving' ? 'Guardando…' : status === 'saved' ? '✓ Guardado' : status === 'error' ? 'Error al guardar' : ''
+
   return (
-    <div className="pb-4">
+    <div>
+      <div className="mb-2 flex items-center justify-between px-1">
+        <span className="text-xs text-ink-faint">Se guarda solo al escribir</span>
+        <span className={`text-xs font-bold ${status === 'error' ? 'text-loss' : 'text-primary'}`}>{statusText}</span>
+      </div>
+
       <div className="ticket overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-4">
+        <div className="grad-hero flex items-center justify-between px-4 py-3.5 text-white">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-ink-faint">
-              {round.name}
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
+              {round.name} · LaLiga
             </div>
-            <h2 className="mt-0.5 text-lg">Tu boleto</h2>
+            <h2 className="mt-0.5 text-lg text-white">Tus predicciones</h2>
           </div>
-          {round.deadline && (
-            <div className="text-right">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-ink-faint">
-                Cierra
-              </div>
-              <div className="nums text-xs font-semibold">{fmtKickoff(round.deadline)}</div>
+          <div className="scoreboard rounded-xl bg-black/25 px-3 py-1.5 text-center">
+            <div className="text-lg leading-none">
+              {Object.keys(preds).length}
+              <span className="text-white/50">/{matches.length}</span>
             </div>
-          )}
+            <div className="text-[10px] font-medium text-white/60">enviados</div>
+          </div>
         </div>
-        <div className="perf mx-4" />
+
         <div className="divide-y divide-line">
-          {matches.map((m) => (
-            <MatchRow
-              key={m.id}
-              match={m}
-              pred={preds[m.id]}
-              input={inputs[m.id]}
-              onInput={(side, v) => setInput(m.id, side, v)}
-            />
-          ))}
+          {matches.map((m) => {
+            const espiaActive =
+              !!myEspia && myEspia.match_id === m.id && Date.now() >= new Date(m.kickoff).getTime() - 3600_000
+            return (
+              <MatchRow
+                key={m.id}
+                match={m}
+                pred={preds[m.id]}
+                input={inputs[m.id]}
+                editable={isEditable(m)}
+                exactPts={pool.points_exact}
+                cardsForMatch={cardsByMatch[m.id] ?? []}
+                members={members}
+                espiaActive={espiaActive}
+                onSpy={() => setSpyMatch(m)}
+                onInput={(side, v) => setInput(m.id, side, v)}
+              />
+            )
+          })}
         </div>
       </div>
 
       {error && <p className="mt-3 text-sm font-medium text-loss">{error}</p>}
 
-      {editable.length > 0 && (
-        <div className="sticky bottom-20 mt-4">
-          <Button full loading={saving} onClick={save} variant={saved ? 'secondary' : 'primary'}>
-            {saved ? '✓ Boleto guardado' : 'Guardar boleto'}
-          </Button>
-        </div>
+      {spyMatch && (
+        <SpySheet
+          poolId={pool.id}
+          match={spyMatch}
+          members={members}
+          onClose={() => setSpyMatch(null)}
+          onCopy={(h, a) => {
+            copyFromSpy(spyMatch.id, h, a)
+            setSpyMatch(null)
+          }}
+        />
       )}
     </div>
   )
 }
 
-function TeamChip({ short }: { short: string | null }) {
+function TeamCol({ crest, short, name }: { crest: string | null; short: string | null; name: string }) {
   return (
-    <span className="nums grid h-8 w-9 shrink-0 place-items-center rounded-lg bg-paper-3 text-[11px] font-bold text-ink-soft">
-      {short ?? '—'}
-    </span>
+    <div className="flex min-w-0 flex-col items-center gap-1.5">
+      <TeamCrest src={crest} short={short} size={44} />
+      <span className="line-clamp-2 w-full text-center text-xs font-semibold leading-tight text-ink">
+        {name}
+      </span>
+    </div>
   )
 }
 
 function ScoreBox({
   value,
   editable,
+  tone,
   onChange,
 }: {
   value: string
   editable: boolean
+  tone: 'final' | 'live' | 'idle'
   onChange?: (v: string) => void
 }) {
   if (editable) {
@@ -282,15 +379,36 @@ function ScoreBox({
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        placeholder="·"
-        className="nums h-11 w-11 rounded-xl border border-line-strong bg-paper text-center text-xl font-semibold text-ink placeholder:text-ink-faint focus:border-accent"
+        placeholder="–"
+        className="scoreboard h-12 w-12 rounded-xl border-2 border-line-strong bg-surface-2 text-center text-2xl text-ink focus:border-primary"
       />
     )
   }
+  const cls =
+    tone === 'live'
+      ? 'border-live/50 bg-live-dim text-live'
+      : tone === 'final'
+        ? 'border-line-strong bg-surface-2 text-ink'
+        : 'border-line bg-surface-2 text-ink-faint'
   return (
-    <div className="nums grid h-11 w-11 place-items-center rounded-xl border border-line bg-paper-2 text-xl font-semibold text-ink">
-      {value === '' ? '·' : value}
+    <div className={`scoreboard grid h-12 w-12 place-items-center rounded-xl border-2 text-2xl ${cls}`}>
+      {value === '' ? '–' : value}
     </div>
+  )
+}
+
+function CardChip({ card, members }: { card: Card; members: Member[] }) {
+  const meta = CARD_META[card.type]
+  const target = members.find((m) => m.user_id === card.target_user_id)?.display_name
+  let label: string = meta.name
+  if (card.type === 'BOMBA') label = 'Mina'
+  if (target) label = target
+  if (card.type === 'DOBLE') label = `${card.bet_points} pts`
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
+      <span>{meta.emoji}</span>
+      {label}
+    </span>
   )
 }
 
@@ -298,58 +416,79 @@ function MatchRow({
   match,
   pred,
   input,
+  editable,
+  exactPts,
+  cardsForMatch,
+  members,
+  espiaActive,
+  onSpy,
   onInput,
 }: {
   match: Match
   pred?: Prediction
   input?: { h: string; a: string }
+  editable: boolean
+  exactPts: number
+  cardsForMatch: Card[]
+  members: Member[]
+  espiaActive: boolean
+  onSpy: () => void
   onInput: (side: 'h' | 'a', v: string) => void
 }) {
   const started = new Date(match.kickoff).getTime() <= Date.now()
-  const editable = match.status === 'SCHEDULED' && !started
   const live = match.status === 'LIVE'
   const finished = match.status === 'FINISHED'
-
-  // Qué marcador enseñar en las cajas
-  const homeShown = editable ? (input?.h ?? '') : match.home_goals != null ? String(match.home_goals) : ''
-  const awayShown = editable ? (input?.a ?? '') : match.away_goals != null ? String(match.away_goals) : ''
+  const tone: 'final' | 'live' | 'idle' = live ? 'live' : finished ? 'final' : 'idle'
+  const homeShown = editable ? input?.h ?? '' : match.home_goals != null ? String(match.home_goals) : ''
+  const awayShown = editable ? input?.a ?? '' : match.away_goals != null ? String(match.away_goals) : ''
 
   return (
-    <div className="px-4 py-3.5">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="nums text-xs font-medium text-ink-faint">{fmtKickoff(match.kickoff)}</span>
+    <div className="px-4 py-4">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="nums text-xs font-semibold text-ink-faint">
+          {editable ? `Cierra ${fmtTime(match.kickoff)}` : fmtKickoff(match.kickoff)}
+        </span>
         <StatusTag status={match.status} started={started} />
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <div className="flex items-center gap-2 justify-self-start">
-          <TeamChip short={match.home_short} />
-          <span className="truncate text-sm font-semibold">{match.home_team}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <ScoreBox value={homeShown} editable={editable} onChange={(v) => onInput('h', v)} />
+      <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
+        <TeamCol crest={match.home_crest} short={match.home_short} name={match.home_team} />
+        <div className="flex items-center gap-1.5 pt-1">
+          <ScoreBox value={homeShown} editable={editable} tone={tone} onChange={(v) => onInput('h', v)} />
           <span className="text-ink-faint">:</span>
-          <ScoreBox value={awayShown} editable={editable} onChange={(v) => onInput('a', v)} />
+          <ScoreBox value={awayShown} editable={editable} tone={tone} onChange={(v) => onInput('a', v)} />
         </div>
-        <div className="flex items-center gap-2 justify-self-end">
-          <span className="truncate text-right text-sm font-semibold">{match.away_team}</span>
-          <TeamChip short={match.away_short} />
-        </div>
+        <TeamCol crest={match.away_crest} short={match.away_short} name={match.away_team} />
       </div>
 
-      {/* pie: pronóstico propio + puntos */}
+      {(cardsForMatch.length > 0 || espiaActive) && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {cardsForMatch.map((c) => (
+            <CardChip key={c.id} card={c} members={members} />
+          ))}
+          {espiaActive && (
+            <button
+              onClick={onSpy}
+              className="inline-flex items-center gap-1 rounded-full bg-primary-dim px-2.5 py-0.5 text-[11px] font-bold text-primary"
+            >
+              🕵️ Ver predicciones
+            </button>
+          )}
+        </div>
+      )}
+
       {!editable && (
         <div className="mt-2.5 flex items-center justify-between">
           <span className="flex items-center gap-2 text-xs text-ink-soft">
             <span className="text-ink-faint">tu pronóstico</span>
-            <span className="nums rounded-md bg-paper-2 px-2 py-0.5 font-semibold text-ink">
+            <span className="nums rounded-md bg-surface-3 px-2 py-0.5 font-bold text-ink">
               {pred ? `${pred.pred_home}–${pred.pred_away}` : '—'}
             </span>
           </span>
           {finished ? (
-            <PointsStamp points={pred?.points ?? 0} />
+            <PointsStamp points={pred?.points ?? 0} exactPts={exactPts} />
           ) : live ? (
-            <span className="text-xs font-medium text-ink-faint">puntos al pitido final</span>
+            <span className="text-xs font-bold text-live">puntos al pitido final</span>
           ) : (
             <span className="text-xs font-medium text-ink-faint">cerrado</span>
           )}
@@ -361,19 +500,21 @@ function MatchRow({
 
 function StatusTag({ status, started }: { status: Match['status']; started: boolean }) {
   const label =
-    status === 'LIVE' ? 'EN JUEGO' : status === 'FINISHED' ? 'FINALIZADO' : started ? 'CERRADO' : 'ABIERTO'
+    status === 'LIVE' ? 'EN JUEGO' : status === 'FINISHED' ? 'FINAL' : started ? 'CERRADO' : 'ABIERTO'
   const cls =
     status === 'LIVE'
-      ? 'text-win bg-win-wash border-win/30'
-      : 'text-ink-soft bg-paper-2 border-line'
+      ? 'text-live bg-live-dim'
+      : status === 'FINISHED'
+        ? 'text-ink-soft bg-surface-2'
+        : started
+          ? 'text-ink-faint bg-surface-2'
+          : 'text-primary bg-primary-dim'
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}
-    >
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
       {status === 'LIVE' && (
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-win opacity-70" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-win" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-live opacity-70" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-live" />
         </span>
       )}
       {label}
@@ -381,30 +522,69 @@ function StatusTag({ status, started }: { status: Match['status']; started: bool
   )
 }
 
-function PointsStamp({ points }: { points: number }) {
-  const good = points > 0
+function PointsStamp({ points, exactPts }: { points: number; exactPts: number }) {
+  if (points <= 0) {
+    return (
+      <span className="nums inline-flex -rotate-2 items-center rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1 text-sm font-bold uppercase text-ink-faint">
+        {points} pts
+      </span>
+    )
+  }
+  const isExact = points >= exactPts
   return (
     <span
-      className={`nums inline-flex -rotate-3 items-center gap-1 rounded-lg border-2 px-2.5 py-1 text-sm font-bold uppercase ${
-        good ? 'border-win/50 bg-win-wash text-win' : 'border-line-strong bg-paper-2 text-ink-faint'
+      className={`nums inline-flex -rotate-2 items-center rounded-lg px-2.5 py-1 text-sm font-bold uppercase shadow-sm ${
+        isExact ? 'grad-gold text-on-primary' : 'bg-win text-on-primary'
       }`}
     >
-      {good ? `+${points}` : '0'} pts
+      {isExact && '🎯 '}+{points} pts
     </span>
   )
 }
 
-// ---------------- Ranking ----------------
+// ---------------- Ranking (General / Jornada) ----------------
 
-function RankingTab({ poolId }: { poolId: string }) {
-  const [rows, setRows] = useState<Standing[] | null>(null)
+const MEDAL = ['🥇', '🥈', '🥉']
+
+function RankingSection({ pool, round }: { pool: PoolType; round: Round | null | undefined }) {
+  const [scope, setScope] = useState<'general' | 'jornada'>('general')
+  const [general, setGeneral] = useState<Standing[] | null>(null)
+  const [jornada, setJornada] = useState<Standing[] | null>(null)
 
   useEffect(() => {
-    getStandings(poolId)
-      .then(setRows)
-      .catch(() => setRows([]))
-  }, [poolId])
+    getStandings(pool.id).then(setGeneral).catch(() => setGeneral([]))
+    if (round) getRoundStandings(pool.id, round.id).then(setJornada).catch(() => setJornada([]))
+    else setJornada([])
+  }, [pool.id, round])
 
+  const rows = scope === 'general' ? general : jornada
+
+  return (
+    <div>
+      <div className="mb-3 flex gap-1 rounded-2xl bg-surface-2 p-1">
+        <button
+          onClick={() => setScope('general')}
+          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${
+            scope === 'general' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'
+          }`}
+        >
+          General
+        </button>
+        <button
+          onClick={() => setScope('jornada')}
+          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${
+            scope === 'jornada' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'
+          }`}
+        >
+          {round?.name ?? 'Jornada'}
+        </button>
+      </div>
+      <StandingsList rows={rows} />
+    </div>
+  )
+}
+
+function StandingsList({ rows }: { rows: Standing[] | null }) {
   if (rows === null) {
     return (
       <div className="flex justify-center py-12 text-ink-faint">
@@ -412,36 +592,40 @@ function RankingTab({ poolId }: { poolId: string }) {
       </div>
     )
   }
-
   if (rows.length === 0) {
     return (
       <div className="ticket mt-2">
-        <EmptyState title="Ranking vacío por ahora">
-          Sumaréis puntos en cuanto se juegue la primera jornada.
+        <EmptyState title="Sin puntos por ahora">
+          Sumaréis en cuanto se juegue el primer partido.
         </EmptyState>
       </div>
     )
   }
-
   return (
-    <ul className="mt-2 space-y-1">
-      {rows.map((r, i) => (
-        <li
-          key={r.user_id}
-          className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${i === 0 ? 'bg-gold-wash' : 'bg-paper'}`}
-        >
-          <span
-            className={`nums grid h-8 w-8 place-items-center rounded-lg text-sm font-bold ${
-              i === 0 ? 'bg-gold text-ink' : 'bg-paper-3 text-ink-soft'
+    <ul className="space-y-2">
+      {rows.map((r, i) => {
+        const podium = i < 3
+        return (
+          <li
+            key={r.user_id}
+            className={`flex items-center gap-3 rounded-2xl border p-3 ${
+              i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'
             }`}
           >
-            {i + 1}
-          </span>
-          <span className="flex-1 truncate font-semibold">{r.display_name}</span>
-          <span className="nums text-xs text-ink-faint">{r.exacts}★</span>
-          <span className="nums w-12 text-right text-lg font-bold">{r.points}</span>
-        </li>
-      ))}
+            <span className={`grid w-7 shrink-0 place-items-center text-lg ${podium ? '' : 'nums text-sm font-bold text-ink-faint'}`}>
+              {podium ? MEDAL[i] : i + 1}
+            </span>
+            <Avatar url={r.avatar_url} name={r.display_name} size={38} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-bold">{r.display_name}</p>
+              <p className="nums text-xs text-ink-faint">
+                {r.exacts} exactos · {r.partials} aciertos
+              </p>
+            </div>
+            <span className="scoreboard text-2xl text-primary">{r.points}</span>
+          </li>
+        )
+      })}
     </ul>
   )
 }

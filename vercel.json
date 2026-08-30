@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/sb/:path*",
+      "destination": "https://lhbunbxawlbhfcvbkqmf.supabase.co/:path*"
+    },
+    { "source": "/((?!assets/|sb/|icon|apple-touch|manifest|sw\\.js|favicon).*)", "destination": "/index.html" }
+  ]
+}

@@ -1,13 +1,14 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import { useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-type Variant = 'primary' | 'secondary' | 'ink' | 'ghost'
+type Variant = 'primary' | 'secondary' | 'magenta' | 'ghost' | 'danger'
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-accent text-paper hover:bg-accent-strong active:brightness-95',
-  secondary: 'border border-line-strong bg-paper text-ink hover:bg-paper-2 active:bg-paper-3',
-  ink: 'bg-ink text-paper hover:opacity-90 active:opacity-80',
-  ghost: 'text-ink-soft hover:bg-paper-2 active:bg-paper-3',
+  primary: 'grad-primary text-on-primary glow-primary active:brightness-95',
+  secondary: 'border border-line-strong bg-surface-2 text-ink hover:bg-surface-3 active:brightness-110',
+  magenta: 'grad-magenta text-white active:brightness-95',
+  ghost: 'text-ink-soft hover:bg-surface-2 active:bg-surface-3',
+  danger: 'border border-loss/40 bg-loss/10 text-loss hover:bg-loss/15',
 }
 
 export function Button({
@@ -27,7 +28,7 @@ export function Button({
     <button
       {...rest}
       disabled={disabled || loading}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-semibold transition-all duration-150 disabled:opacity-50 ${
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-bold transition-all duration-150 disabled:opacity-50 ${
         VARIANTS[variant]
       } ${full ? 'w-full' : ''} ${className}`}
     >
@@ -60,7 +61,7 @@ export function Field({
       <span className="mb-1.5 block text-sm font-semibold text-ink-soft">{label}</span>
       <input
         {...rest}
-        className={`min-h-12 w-full rounded-2xl border border-line-strong bg-paper px-4 text-[16px] text-ink placeholder:text-ink-faint focus:border-accent ${className}`}
+        className={`min-h-12 w-full rounded-2xl border border-line-strong bg-surface-2 px-4 text-[16px] text-ink placeholder:text-ink-faint focus:border-primary ${className}`}
       />
       {hint && <span className="mt-1.5 block text-xs text-ink-faint">{hint}</span>}
     </label>
@@ -71,19 +72,27 @@ export function ScreenHeader({
   title,
   back,
   action,
+  gradient,
 }: {
   title: string
   back?: boolean | string
   action?: ReactNode
+  gradient?: boolean
 }) {
   const nav = useNavigate()
   return (
-    <header className="safe-top sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
+    <header
+      className={`safe-top sticky top-0 z-20 ${
+        gradient ? 'grad-hero text-white' : 'border-b border-line bg-bg/80 backdrop-blur'
+      }`}
+    >
       <div className="flex h-14 items-center gap-2 px-3">
         {back && (
           <button
             onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))}
-            className="grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-paper-2"
+            className={`grid h-10 w-10 place-items-center rounded-xl ${
+              gradient ? 'text-white/90 hover:bg-white/15' : 'text-ink-soft hover:bg-surface-2'
+            }`}
             aria-label="Volver"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -110,12 +119,75 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center px-8 py-12 text-center">
       {icon && <div className="mb-3 text-ink-faint">{icon}</div>}
-      <p className="text-base font-semibold text-ink">{title}</p>
+      <p className="text-base font-bold text-ink">{title}</p>
       {children && <p className="mt-1.5 max-w-xs text-sm text-ink-soft">{children}</p>}
     </div>
   )
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`ticket ${className}`}>{children}</div>
+  return <div className={`card ${className}`}>{children}</div>
+}
+
+/** Escudo del equipo: imagen si hay URL, si no las siglas. */
+export function TeamCrest({
+  src,
+  short,
+  size = 40,
+}: {
+  src?: string | null
+  short?: string | null
+  size?: number
+}) {
+  const [failed, setFailed] = useState(false)
+  const px = { width: size, height: size }
+  if (src && !failed) {
+    return (
+      <span style={px} className="grid shrink-0 place-items-center">
+        <img src={src} alt={short ?? ''} onError={() => setFailed(true)} className="crest" />
+      </span>
+    )
+  }
+  return (
+    <span
+      style={px}
+      className="nums grid shrink-0 place-items-center rounded-xl bg-surface-3 text-[11px] font-bold text-ink-soft"
+    >
+      {short ?? '—'}
+    </span>
+  )
+}
+
+/** Avatar de usuario: foto o iniciales sobre lima. */
+export function Avatar({
+  url,
+  name,
+  size = 44,
+}: {
+  url?: string | null
+  name: string
+  size?: number
+}) {
+  const [failed, setFailed] = useState(false)
+  const px = { width: size, height: size }
+  const initials = name.slice(0, 2).toUpperCase()
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        style={px}
+        onError={() => setFailed(true)}
+        className="shrink-0 rounded-full object-cover"
+      />
+    )
+  }
+  return (
+    <span
+      style={{ ...px, fontSize: size * 0.36 }}
+      className="grad-primary nums grid shrink-0 place-items-center rounded-full font-bold text-on-primary"
+    >
+      {initials}
+    </span>
+  )
 }

@@ -1,18 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!url || !anon) {
-  // No rompemos la app en modo demo, pero avisamos claramente.
+// IMPORTANTE (bloqueos de LaLiga a Cloudflare en España):
+// Supabase va por Cloudflare, así que NO llamamos a *.supabase.co directamente.
+// El cliente habla siempre con el MISMO origen de la app, en la ruta /sb, que el
+// host (Vercel / VPS / vite dev) redirige (proxy) hacia el proyecto Supabase.
+// Así, durante los partidos, el navegador nunca toca una IP de Cloudflare.
+const proxyBase =
+  typeof window !== 'undefined' ? `${window.location.origin}/sb` : '/sb'
+
+if (!anon) {
   console.warn(
-    '[porra] Falta VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY. ' +
-      'Copia .env.example a .env.local y rellena tus claves de Supabase.',
+    '[porra] Falta VITE_SUPABASE_ANON_KEY. Copia .env.example a .env.local y rellénala.',
   )
 }
 
-export const supabase = createClient(url ?? '', anon ?? '', {
-  // Toda la app vive en el schema `porra` (aislado del resto del proyecto).
+export const supabase = createClient(proxyBase, anon ?? '', {
   db: { schema: 'porra' },
   auth: {
     persistSession: true,
@@ -20,4 +24,4 @@ export const supabase = createClient(url ?? '', anon ?? '', {
   },
 })
 
-export const hasSupabase = Boolean(url && anon)
+export const hasSupabase = Boolean(anon)

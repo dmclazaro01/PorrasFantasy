@@ -26,3 +26,6 @@ logs
 supabase/.branches
 supabase/.temp
 /.claude
+
+.vercel
+.env*

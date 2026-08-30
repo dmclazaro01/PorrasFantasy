@@ -18,7 +18,7 @@ export default function CreatePool() {
     listCompetitions()
       .then((c) => {
         setComps(c)
-        if (c.length > 0) setCompId(c[0].id) // preselecciona LaLiga
+        if (c.length > 0) setCompId(c[0].id)
       })
       .catch((e) => {
         setError(e.message ?? 'Error cargando competiciones')
@@ -58,7 +58,6 @@ export default function CreatePool() {
           onChange={(e) => setName(e.target.value)}
         />
 
-        {/* Selector de competición */}
         <div>
           <span className="mb-2 block text-sm font-semibold text-ink-soft">Competición</span>
           {comps === null ? (
@@ -66,11 +65,9 @@ export default function CreatePool() {
               <Spinner small />
             </div>
           ) : comps.length === 0 ? (
-            <div className="ticket p-4 text-sm text-ink-soft">
+            <div className="card p-4 text-sm text-ink-soft">
               No hay competiciones disponibles.
-              <span className="block text-xs text-ink-faint">
-                Configura la base de datos (semilla de LaLiga) para continuar.
-              </span>
+              <span className="block text-xs text-ink-faint">Configura la semilla de LaLiga.</span>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -82,24 +79,20 @@ export default function CreatePool() {
                     type="button"
                     onClick={() => setCompId(c.id)}
                     className={`flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ${
-                      selected
-                        ? 'border-accent bg-accent-wash'
-                        : 'border-line-strong bg-paper hover:bg-paper-2'
+                      selected ? 'border-primary bg-primary-dim' : 'border-line-strong bg-surface-2 hover:bg-surface-3'
                     }`}
                     aria-pressed={selected}
                   >
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ink text-lg">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface-3 text-lg">
                       🇪🇸
                     </span>
                     <span className="flex-1">
                       <span className="block font-semibold">{c.name}</span>
-                      <span className="nums block text-xs text-ink-faint">
-                        Temporada {c.season}
-                      </span>
+                      <span className="nums block text-xs text-ink-faint">Temporada {c.season}</span>
                     </span>
                     <span
                       className={`grid h-6 w-6 place-items-center rounded-full border-2 ${
-                        selected ? 'border-accent bg-accent text-paper' : 'border-line-strong'
+                        selected ? 'border-primary bg-primary text-on-primary' : 'border-line-strong'
                       }`}
                     >
                       {selected && (
@@ -111,15 +104,12 @@ export default function CreatePool() {
                   </button>
                 )
               })}
-              <p className="px-1 text-xs text-ink-faint">
-                Por ahora solo LaLiga. Pronto más competiciones.
-              </p>
+              <p className="px-1 text-xs text-ink-faint">Por ahora solo LaLiga. Pronto más.</p>
             </div>
           )}
         </div>
 
-        {/* Puntuación (avanzado) */}
-        <div className="ticket overflow-hidden">
+        <div className="card overflow-hidden">
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -140,22 +130,8 @@ export default function CreatePool() {
           </button>
           {showAdvanced && (
             <div className="grid grid-cols-2 gap-3 border-t border-line p-4">
-              <Field
-                label="Acertar 1·X·2"
-                type="number"
-                min={0}
-                max={50}
-                value={p1x2}
-                onChange={(e) => setP1x2(Number(e.target.value))}
-              />
-              <Field
-                label="Resultado exacto"
-                type="number"
-                min={0}
-                max={50}
-                value={pExact}
-                onChange={(e) => setPExact(Number(e.target.value))}
-              />
+              <Field label="Acertar 1·X·2" type="number" min={0} max={50} value={p1x2} onChange={(e) => setP1x2(Number(e.target.value))} />
+              <Field label="Resultado exacto" type="number" min={0} max={50} value={pExact} onChange={(e) => setPExact(Number(e.target.value))} />
             </div>
           )}
         </div>

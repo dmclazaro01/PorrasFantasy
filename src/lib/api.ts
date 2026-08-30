@@ -22,6 +22,7 @@ export interface Standing {
   pool_id: string
   user_id: string
   display_name: string
+  avatar_url: string | null
   points: number
   graded: number
   exacts: number
@@ -101,6 +102,8 @@ export interface Match {
   away_team: string
   home_short: string | null
   away_short: string | null
+  home_crest: string | null
+  away_crest: string | null
   kickoff: string
   status: MatchStatus
   home_goals: number | null
@@ -140,13 +143,17 @@ export async function getMatches(roundId: number): Promise<Match[]> {
 
 export async function getMyPredictions(
   poolId: string,
+  userId: string,
   matchIds: number[],
 ): Promise<Record<number, Prediction>> {
-  if (matchIds.length === 0) return {}
+  if (matchIds.length === 0 || !userId) return {}
+  // IMPORTANTE: filtrar por user_id. El RLS revela predicciones ajenas tras el
+  // kickoff, así que SIN este filtro se mezclarían con las del propio usuario.
   const { data, error } = await supabase
     .from('predictions')
     .select('id, match_id, pred_home, pred_away, points')
     .eq('pool_id', poolId)
+    .eq('user_id', userId)
     .in('match_id', matchIds)
   if (error) throw error
   const map: Record<number, Prediction> = {}
@@ -181,4 +188,145 @@ export async function countMembers(poolId: string): Promise<number> {
     .eq('pool_id', poolId)
   if (error) throw error
   return count ?? 0
+}
+
+// ---------------- Perfil ----------------
+
+export interface Profile {
+  id: string
+  display_name: string
+  avatar_url: string | null
+}
+
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, display_name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return data as Profile | null
+}
+
+export async function updateProfile(
+  userId: string,
+  patch: { display_name?: string; avatar_url?: string | null },
+): Promise<void> {
+  // upsert por si el perfil aún no existe (usuario que no ha creado/unido porra)
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...patch }, { onConflict: 'id' })
+  if (error) throw error
+}
+
+// ---------------- Clasificación por jornada ----------------
+
+export async function getRoundStandings(poolId: string, roundId: number): Promise<Standing[]> {
+  const { data, error } = await supabase
+    .from('pool_round_standings')
+    .select('*')
+    .eq('pool_id', poolId)
+    .eq('round_id', roundId)
+    .order('points', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as Standing[]
+}
+
+// ---------------- Cartas ----------------
+
+export type CardType = 'BOMBA' | 'ROJA' | 'LESION' | 'ESPIA' | 'PRENSA' | 'DOBLE'
+
+export interface Card {
+  id: number
+  pool_id: string
+  round_id: number
+  owner_id: string
+  type: CardType
+  status: 'GRANTED' | 'PLAYED'
+  match_id: number | null
+  target_user_id: string | null
+  bet_points: number | null
+}
+
+export interface Member {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+}
+
+export async function ensureMyCard(poolId: string, roundId: number): Promise<Card | null> {
+  const { data, error } = await supabase.rpc('ensure_my_card', { p_pool: poolId, p_round: roundId })
+  if (error) throw error
+  return (data ?? null) as Card | null
+}
+
+export async function playCard(input: {
+  cardId: number
+  matchId: number
+  targetUserId?: string | null
+  bet?: number | null
+}): Promise<Card> {
+  const { data, error } = await supabase.rpc('play_card', {
+    p_card: input.cardId,
+    p_match: input.matchId,
+    p_target: input.targetUserId ?? null,
+    p_bet: input.bet ?? null,
+  })
+  if (error) throw error
+  return data as Card
+}
+
+/** Cartas visibles para el usuario en la jornada (propias + destapadas). */
+export async function getVisibleCards(poolId: string, roundId: number): Promise<Card[]> {
+  const { data, error } = await supabase
+    .from('cards')
+    .select('*')
+    .eq('pool_id', poolId)
+    .eq('round_id', roundId)
+  if (error) throw error
+  return (data ?? []) as Card[]
+}
+
+export interface MatchPrediction {
+  user_id: string
+  pred_home: number
+  pred_away: number
+}
+
+/** Predicciones de un partido visibles para el usuario (RLS: propio / tras kickoff / prensa / espía). */
+export async function getMatchPredictions(poolId: string, matchId: number): Promise<MatchPrediction[]> {
+  const { data, error } = await supabase
+    .from('predictions')
+    .select('user_id, pred_home, pred_away')
+    .eq('pool_id', poolId)
+    .eq('match_id', matchId)
+  if (error) throw error
+  return (data ?? []) as MatchPrediction[]
+}
+
+export async function getMembers(poolId: string): Promise<Member[]> {
+  const { data, error } = await supabase
+    .from('pool_members')
+    .select('user_id, profiles(display_name, avatar_url)')
+    .eq('pool_id', poolId)
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const prof = (r as { profiles: { display_name?: string; avatar_url?: string | null } | null }).profiles
+    return {
+      user_id: (r as { user_id: string }).user_id,
+      display_name: prof?.display_name ?? '—',
+      avatar_url: prof?.avatar_url ?? null,
+    }
+  })
+}
+
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${userId}/avatar_${Date.now()}.${ext}`
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return data.publicUrl
 }
