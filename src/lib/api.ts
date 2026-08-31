@@ -95,6 +95,14 @@ export interface Round {
   deadline: string | null
 }
 
+export interface Scorer {
+  t: 'home' | 'away'
+  p: string
+  m: number | null
+  x?: number | null
+  d?: string
+}
+
 export interface Match {
   id: number
   round_id: number
@@ -111,6 +119,8 @@ export interface Match {
   ht_home: number | null
   ht_away: number | null
   live_status: string | null
+  minute: number | null
+  scorers: Scorer[] | null
   is_knockout: boolean
 }
 
@@ -162,6 +172,94 @@ export async function getMatches(roundId: number): Promise<Match[]> {
     .order('kickoff')
   if (error) throw error
   return (data ?? []) as Match[]
+}
+
+// ---------------- Segmentos (jornadas partidas por fecha) ----------------
+// Una jornada puede tener partidos muy separados en el tiempo (p. ej. un
+// adelantado un jueves y el resto dos semanas después). Para la navegación y la
+// vista partimos cada jornada en "segmentos" por cercanía de fechas: así solo
+// se ven los partidos inminentes, y el resto de esa jornada aparece luego en su
+// fecha normal. La puntuación NO cambia: cada partido sigue en su jornada real.
+
+export interface MatchMeta {
+  id: number
+  round_id: number
+  kickoff: string
+  status: MatchStatus
+}
+
+export interface Segment {
+  key: string
+  roundId: number
+  name: string
+  deadline: string
+  matchIds: number[]
+}
+
+export async function listMatchMeta(roundIds: number[]): Promise<MatchMeta[]> {
+  if (roundIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('matches')
+    .select('id, round_id, kickoff, status')
+    .in('round_id', roundIds)
+    .order('kickoff', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as MatchMeta[]
+}
+
+const SEGMENT_GAP_MS = 4 * 24 * 3600_000 // >4 días entre partidos parte la jornada
+
+export function buildSegments(rounds: Round[], metas: MatchMeta[]): Segment[] {
+  const byRound = new Map<number, MatchMeta[]>()
+  for (const m of metas) {
+    if (!byRound.has(m.round_id)) byRound.set(m.round_id, [])
+    byRound.get(m.round_id)!.push(m)
+  }
+  const segs: Segment[] = []
+  for (const r of rounds) {
+    const ms = (byRound.get(r.id) ?? []).slice().sort(
+      (a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime(),
+    )
+    if (ms.length === 0) {
+      segs.push({ key: `${r.id}:0`, roundId: r.id, name: r.name, deadline: r.deadline ?? '', matchIds: [] })
+      continue
+    }
+    let cluster: MatchMeta[] = [ms[0]]
+    let ci = 0
+    const flush = () =>
+      segs.push({
+        key: `${r.id}:${ci}`,
+        roundId: r.id,
+        name: r.name,
+        deadline: cluster[0].kickoff,
+        matchIds: cluster.map((x) => x.id),
+      })
+    for (let i = 1; i < ms.length; i++) {
+      if (new Date(ms[i].kickoff).getTime() - new Date(ms[i - 1].kickoff).getTime() > SEGMENT_GAP_MS) {
+        flush()
+        ci++
+        cluster = [ms[i]]
+      } else {
+        cluster.push(ms[i])
+      }
+    }
+    flush()
+  }
+  // Orden cronológico por primer partido del segmento (deadline vacío al final).
+  return segs.sort((a, b) => (a.deadline || '￿').localeCompare(b.deadline || '￿'))
+}
+
+/** Segmento "en curso": el que contiene el próximo partido por jugarse. */
+export function currentSegmentKey(segments: Segment[], metas: MatchMeta[]): string {
+  const now = Date.now()
+  const upcoming = metas
+    .filter((m) => m.status !== 'FINISHED' && new Date(m.kickoff).getTime() >= now - 3 * 3600_000)
+    .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())[0]
+  if (upcoming) {
+    const seg = segments.find((s) => s.matchIds.includes(upcoming.id))
+    if (seg) return seg.key
+  }
+  return segments[segments.length - 1]?.key ?? ''
 }
 
 export async function getMyPredictions(

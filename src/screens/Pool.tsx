@@ -2,24 +2,28 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
+  buildSegments,
+  currentSegmentKey,
   ensureMyCard,
   getMatches,
   getMyPredictions,
   getMembers,
-  getCurrentRoundId,
   getPool,
   getProfile,
   getRoundStandings,
   getStandings,
   getVisibleCards,
+  listMatchMeta,
   listRounds,
   savePrediction,
   type Card,
   type Match,
+  type MatchMeta,
   type Member,
   type Pool as PoolType,
   type Prediction,
   type Round,
+  type Segment,
   type Standing,
 } from '../lib/api'
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
@@ -32,7 +36,8 @@ export default function Pool() {
   const [pool, setPool] = useState<PoolType | null>(null)
   const [section, setSection] = useState<Section>('predicciones')
   const [rounds, setRounds] = useState<Round[]>([])
-  const [selectedRoundId, setSelectedRoundId] = useState<number | null>(null)
+  const [segments, setSegments] = useState<Segment[]>([])
+  const [selectedSegKey, setSelectedSegKey] = useState<string>('')
   const [latestRound, setLatestRound] = useState<Round | null>(null)
   const [myCard, setMyCard] = useState<Card | null>(null)
   const [loadedRounds, setLoadedRounds] = useState(false)
@@ -53,18 +58,21 @@ export default function Pool() {
     }
     listRounds(pool.competition_id).then(async (rs) => {
       setRounds(rs)
-      let curId: number | null = null
+      let metas: MatchMeta[] = []
       try {
-        curId = await getCurrentRoundId(pool.competition_id!)
+        metas = await listMatchMeta(rs.map((r) => r.id))
       } catch {
         /* ignore */
       }
-      // jornada en curso; si todas acabaron, la última
-      const current = rs.find((r) => r.id === curId) ?? rs[rs.length - 1] ?? null
-      setLatestRound(current)
-      setSelectedRoundId(current?.id ?? null)
+      const segs = buildSegments(rs, metas)
+      setSegments(segs)
+      const curKey = currentSegmentKey(segs, metas)
+      setSelectedSegKey(curKey)
+      const curSeg = segs.find((s) => s.key === curKey) ?? null
+      const curRound = curSeg ? rs.find((r) => r.id === curSeg.roundId) ?? null : null
+      setLatestRound(curRound)
       setLoadedRounds(true)
-      if (current) ensureMyCard(pool.id, current.id).then(setMyCard).catch(() => {})
+      if (curRound) ensureMyCard(pool.id, curRound.id).then(setMyCard).catch(() => {})
     })
   }, [pool])
 
@@ -106,7 +114,10 @@ export default function Pool() {
     )
   }
 
-  const selectedRound = rounds.find((r) => r.id === selectedRoundId) ?? null
+  const selectedSegment = segments.find((s) => s.key === selectedSegKey) ?? null
+  const selectedRound = selectedSegment
+    ? rounds.find((r) => r.id === selectedSegment.roundId) ?? null
+    : null
 
   return (
     <div className="flex flex-1 flex-col">
@@ -131,7 +142,7 @@ export default function Pool() {
       <div className="flex-1 px-4 pb-32 pt-4">
         {section === 'predicciones' &&
           (loadedRounds ? (
-            <PrediccionesSection pool={pool} round={selectedRound} />
+            <PrediccionesSection pool={pool} round={selectedRound} matchIds={selectedSegment?.matchIds ?? null} />
           ) : (
             <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
           ))}
@@ -143,7 +154,7 @@ export default function Pool() {
 
       <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
         {section !== 'cartas' && (
-          <JornadaBar rounds={rounds} selectedId={selectedRoundId} onSelect={setSelectedRoundId} />
+          <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
         )}
         <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
       </div>
@@ -152,31 +163,41 @@ export default function Pool() {
 }
 
 function JornadaBar({
-  rounds,
-  selectedId,
+  segments,
+  selectedKey,
   onSelect,
 }: {
-  rounds: Round[]
-  selectedId: number | null
-  onSelect: (id: number) => void
+  segments: Segment[]
+  selectedKey: string
+  onSelect: (key: string) => void
 }) {
-  if (rounds.length === 0) return null
-  const idx = rounds.findIndex((r) => r.id === selectedId)
+  if (segments.length === 0) return null
+  const idx = segments.findIndex((s) => s.key === selectedKey)
+  const seg = segments[idx]
+  // Si una jornada está partida en varios segmentos, lo indicamos discretamente.
+  const sameRound = seg ? segments.filter((s) => s.roundId === seg.roundId) : []
+  const partLabel =
+    seg && sameRound.length > 1
+      ? ` · parte ${sameRound.findIndex((s) => s.key === seg.key) + 1}/${sameRound.length}`
+      : ''
   return (
     <div className="flex items-center justify-between border-b border-line px-2 py-1.5">
       <button
         disabled={idx <= 0}
-        onClick={() => idx > 0 && onSelect(rounds[idx - 1].id)}
+        onClick={() => idx > 0 && onSelect(segments[idx - 1].key)}
         className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
         aria-label="Jornada anterior"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
         Ant.
       </button>
-      <span className="text-sm font-bold">{rounds[idx]?.name ?? 'Jornada'}</span>
+      <span className="text-sm font-bold">
+        {seg?.name ?? 'Jornada'}
+        {partLabel && <span className="text-ink-faint">{partLabel}</span>}
+      </span>
       <button
-        disabled={idx >= rounds.length - 1}
-        onClick={() => idx < rounds.length - 1 && onSelect(rounds[idx + 1].id)}
+        disabled={idx >= segments.length - 1}
+        onClick={() => idx < segments.length - 1 && onSelect(segments[idx + 1].key)}
         className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
         aria-label="Jornada siguiente"
       >
@@ -230,9 +251,21 @@ function fmtKickoff(iso: string) {
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
 }
+function fmtScorerMin(s: { m: number | null; x?: number | null }) {
+  if (s.m == null) return ''
+  return `${s.m}${s.x ? `+${s.x}` : ''}'`
+}
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | null }) {
+function PrediccionesSection({
+  pool,
+  round,
+  matchIds,
+}: {
+  pool: PoolType
+  round: Round | null
+  matchIds: number[] | null
+}) {
   const [matches, setMatches] = useState<Match[]>([])
   const [preds, setPreds] = useState<Record<number, Prediction>>({})
   const [inputs, setInputs] = useState<Record<number, { h: string; a: string }>>({})
@@ -359,6 +392,17 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
   }, [cards])
   const myEspia = cards.find((c) => c.type === 'ESPIA' && c.status === 'PLAYED' && c.owner_id === userId)
 
+  // Solo los partidos del segmento (jornada partida): el resto de la jornada
+  // aparece en su propio segmento, en su fecha.
+  const visibleMatches = useMemo(
+    () => (matchIds ? matches.filter((m) => matchIds.includes(m.id)) : matches),
+    [matches, matchIds],
+  )
+  const sentCount = useMemo(
+    () => visibleMatches.filter((m) => preds[m.id]).length,
+    [visibleMatches, preds],
+  )
+
   if (loading) {
     return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
@@ -390,15 +434,15 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
           </div>
           <div className="scoreboard rounded-xl bg-black/25 px-3 py-1.5 text-center">
             <div className="text-lg leading-none">
-              {Object.keys(preds).length}
-              <span className="text-white/50">/{matches.length}</span>
+              {sentCount}
+              <span className="text-white/50">/{visibleMatches.length}</span>
             </div>
             <div className="text-[10px] font-medium text-white/60">enviados</div>
           </div>
         </div>
 
         <div className="divide-y divide-line">
-          {matches.map((m) => {
+          {visibleMatches.map((m) => {
             const espiaActive =
               !!myEspia && myEspia.match_id === m.id && Date.now() >= new Date(m.kickoff).getTime() - 3600_000
             return (
@@ -556,6 +600,25 @@ function MatchRow({
         <TeamCol crest={match.away_crest} short={match.away_short} name={match.away_team} />
       </div>
 
+      {match.scorers && match.scorers.length > 0 && (
+        <div className="mt-2.5 grid grid-cols-2 gap-3 text-[11px] leading-snug text-ink-soft">
+          <div className="space-y-0.5">
+            {match.scorers.filter((s) => s.t === 'home').map((s, i) => (
+              <div key={i} className="truncate">
+                <span className="text-ink-faint">⚽ {fmtScorerMin(s)}</span> {s.p}
+              </div>
+            ))}
+          </div>
+          <div className="space-y-0.5 text-right">
+            {match.scorers.filter((s) => s.t === 'away').map((s, i) => (
+              <div key={i} className="truncate">
+                {s.p} <span className="text-ink-faint">{fmtScorerMin(s)} ⚽</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(cardsForMatch.length > 0 || espiaActive) && (
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
           {cardsForMatch.map((c) => (
@@ -586,7 +649,9 @@ function MatchRow({
             ) : stale ? (
               <span className="text-xs font-bold text-gold">por confirmar</span>
             ) : live ? (
-              <span className="text-xs font-bold text-live">en juego</span>
+              <span className="text-xs font-bold text-live">
+                {paused ? 'descanso' : match.minute != null ? `min ${match.minute}'` : 'en juego'}
+              </span>
             ) : null}
             <button onClick={() => onOpenDetail(false)} className="text-xs font-bold text-primary">
               Ver porras ›

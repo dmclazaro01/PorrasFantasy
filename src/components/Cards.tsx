@@ -458,7 +458,15 @@ export function MatchDetailSheet({
   const finished = match.status === 'FINISHED'
   const live = match.status === 'LIVE'
   const paused = match.live_status === 'PAUSED'
-  const statusLabel = finished ? 'FINAL' : paused ? 'DESCANSO' : live ? 'EN JUEGO' : fmtShort(match.kickoff)
+  const statusLabel = finished
+    ? 'FINAL'
+    : paused
+      ? 'DESCANSO'
+      : live
+        ? match.minute != null
+          ? `EN JUEGO ${match.minute}'`
+          : 'EN JUEGO'
+        : fmtShort(match.kickoff)
   const score =
     started && match.home_goals != null ? `${match.home_goals} – ${match.away_goals}` : '– : –'
 
@@ -498,6 +506,36 @@ export function MatchDetailSheet({
           </p>
         )}
       </div>
+
+      {match.scorers && match.scorers.length > 0 && (
+        <div className="mt-3 rounded-2xl border border-line bg-surface-2 p-3">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-faint">Goleadores</p>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="space-y-1">
+              {match.scorers.filter((s) => s.t === 'home').map((s, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <span className="text-ink-faint">⚽</span>
+                  <span className="truncate font-semibold">{s.p}</span>
+                  <span className="nums text-ink-faint">{s.m != null ? `${s.m}${s.x ? `+${s.x}` : ''}'` : ''}</span>
+                  {s.d === 'Penalty' && <span className="text-[10px] text-ink-faint">(pen)</span>}
+                  {s.d === 'Own Goal' && <span className="text-[10px] text-ink-faint">(p.p.)</span>}
+                </div>
+              ))}
+            </div>
+            <div className="space-y-1 text-right">
+              {match.scorers.filter((s) => s.t === 'away').map((s, i) => (
+                <div key={i} className="flex items-center justify-end gap-1.5">
+                  {s.d === 'Penalty' && <span className="text-[10px] text-ink-faint">(pen)</span>}
+                  {s.d === 'Own Goal' && <span className="text-[10px] text-ink-faint">(p.p.)</span>}
+                  <span className="nums text-ink-faint">{s.m != null ? `${s.m}${s.x ? `+${s.x}` : ''}'` : ''}</span>
+                  <span className="truncate font-semibold">{s.p}</span>
+                  <span className="text-ink-faint">⚽</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isAdmin && (
         <div className="mt-4 rounded-2xl border border-gold/30 bg-gold-dim p-3">
