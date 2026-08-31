@@ -7,6 +7,7 @@ import {
   getMyPredictions,
   getMembers,
   getPool,
+  getProfile,
   getRoundStandings,
   getStandings,
   getVisibleCards,
@@ -226,6 +227,7 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
   const [preds, setPreds] = useState<Record<number, Prediction>>({})
   const [inputs, setInputs] = useState<Record<number, { h: string; a: string }>>({})
   const [userId, setUserId] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const [cards, setCards] = useState<Card[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [status, setStatus] = useState<SaveStatus>('idle')
@@ -247,13 +249,15 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
         return
       }
       const ms = await getMatches(round.id)
-      const [ps, vc, mem] = await Promise.all([
+      const [ps, vc, mem, prof] = await Promise.all([
         getMyPredictions(pool.id, uid, ms.map((m) => m.id)),
         getVisibleCards(pool.id, round.id),
         getMembers(pool.id),
+        getProfile(uid).catch(() => null),
       ])
       if (!alive) return
       setUserId(uid)
+      setIsAdmin(!!prof?.is_admin)
       setMatches(ms)
       setPreds(ps)
       setCards(vc)
@@ -329,6 +333,13 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
       return next
     })
     autosave(matchId)
+  }
+
+  async function reloadMatches() {
+    if (!round) return
+    const ms = await getMatches(round.id)
+    setMatches(ms)
+    if (userId) getMyPredictions(pool.id, userId, ms.map((m) => m.id)).then(setPreds).catch(() => {})
   }
 
   const cardsByMatch = useMemo(() => {
@@ -407,6 +418,8 @@ function PrediccionesSection({ pool, round }: { pool: PoolType; round: Round | n
           match={detail.match}
           members={members}
           exactPts={pool.points_exact}
+          isAdmin={isAdmin}
+          onChanged={reloadMatches}
           onClose={() => setDetail(null)}
           onCopy={
             detail.copy
@@ -508,7 +521,9 @@ function MatchRow({
   const live = match.status === 'LIVE'
   const finished = match.status === 'FINISHED'
   const paused = match.live_status === 'PAUSED'
-  const tone: 'final' | 'live' | 'idle' = live ? 'live' : finished ? 'final' : 'idle'
+  // Partido empezado hace >3.5h que la API no da por finalizado (dato "colgado")
+  const stale = started && !finished && Date.now() - new Date(match.kickoff).getTime() > 3.5 * 3600_000
+  const tone: 'final' | 'live' | 'idle' = live && !stale ? 'live' : finished ? 'final' : 'idle'
   const homeShown = editable ? input?.h ?? '' : match.home_goals != null ? String(match.home_goals) : ''
   const awayShown = editable ? input?.a ?? '' : match.away_goals != null ? String(match.away_goals) : ''
 
@@ -518,7 +533,7 @@ function MatchRow({
         <span className="nums text-xs font-semibold text-ink-faint">
           {editable ? `Cierra ${fmtTime(match.kickoff)}` : fmtKickoff(match.kickoff)}
         </span>
-        <StatusTag status={match.status} started={started} paused={paused} />
+        <StatusTag status={match.status} started={started} paused={paused} stale={stale} />
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
@@ -558,6 +573,8 @@ function MatchRow({
           <div className="flex items-center gap-2">
             {finished ? (
               <PointsStamp points={pred?.points ?? 0} exactPts={exactPts} />
+            ) : stale ? (
+              <span className="text-xs font-bold text-gold">por confirmar</span>
             ) : live ? (
               <span className="text-xs font-bold text-live">en juego</span>
             ) : null}
@@ -571,7 +588,24 @@ function MatchRow({
   )
 }
 
-function StatusTag({ status, started, paused }: { status: Match['status']; started: boolean; paused: boolean }) {
+function StatusTag({
+  status,
+  started,
+  paused,
+  stale,
+}: {
+  status: Match['status']
+  started: boolean
+  paused: boolean
+  stale: boolean
+}) {
+  if (stale) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-gold-dim px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
+        POR CONFIRMAR
+      </span>
+    )
+  }
   const label =
     status === 'LIVE' ? (paused ? 'DESCANSO' : 'EN JUEGO') : status === 'FINISHED' ? 'FINAL' : started ? 'CERRADO' : 'ABIERTO'
   const cls =

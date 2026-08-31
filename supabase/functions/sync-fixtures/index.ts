@@ -77,6 +77,7 @@ Deno.serve(async (_req: Request) => {
           live_status: m.status,
         })
         .eq('api_fixture_id', m.id)
+        .eq('manual_override', false) // no pisar partidos corregidos a mano
       if (!error) updated++
     }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
+  adminSetMatch,
   ensureMyCard,
   getMatches,
   getMatchPredictions,
@@ -406,22 +407,50 @@ export function MatchDetailSheet({
   match,
   members,
   exactPts,
+  isAdmin,
   onClose,
   onCopy,
+  onChanged,
 }: {
   poolId: string
   match: Match
   members: Member[]
   exactPts: number
+  isAdmin?: boolean
   onClose: () => void
   onCopy?: (home: number, away: number) => void
+  onChanged?: () => void
 }) {
   const [rows, setRows] = useState<MatchPrediction[] | null>(null)
+  const [ah, setAh] = useState(match.home_goals != null ? String(match.home_goals) : '')
+  const [aa, setAa] = useState(match.away_goals != null ? String(match.away_goals) : '')
+  const [adminBusy, setAdminBusy] = useState(false)
+  const [adminMsg, setAdminMsg] = useState<string | null>(null)
+
   useEffect(() => {
     getMatchPredictions(poolId, match.id)
       .then(setRows)
       .catch(() => setRows([]))
   }, [poolId, match.id])
+
+  async function adminSave(st: 'FINISHED' | 'LIVE' | 'SCHEDULED') {
+    if (st !== 'SCHEDULED' && (ah === '' || aa === '')) {
+      setAdminMsg('Pon el marcador')
+      return
+    }
+    setAdminBusy(true)
+    setAdminMsg(null)
+    try {
+      await adminSetMatch(match.id, Number(ah || 0), Number(aa || 0), st)
+      setAdminMsg('✓ Guardado')
+      onChanged?.()
+      setTimeout(() => setAdminMsg(null), 1500)
+    } catch (e) {
+      setAdminMsg((e as Error).message)
+    } finally {
+      setAdminBusy(false)
+    }
+  }
 
   const nameOf = (id: string) => members.find((m) => m.user_id === id)?.display_name ?? '—'
   const avatarOf = (id: string) => members.find((m) => m.user_id === id)?.avatar_url ?? null
@@ -469,6 +498,47 @@ export function MatchDetailSheet({
           </p>
         )}
       </div>
+
+      {isAdmin && (
+        <div className="mt-4 rounded-2xl border border-gold/30 bg-gold-dim p-3">
+          <p className="mb-2 text-sm font-bold text-gold">🛠️ Admin · corregir resultado</p>
+          <div className="flex items-center gap-2">
+            <input
+              inputMode="numeric"
+              value={ah}
+              onChange={(e) => setAh(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              placeholder="–"
+              className="scoreboard h-11 w-14 rounded-xl border-2 border-line-strong bg-surface-2 text-center text-xl text-ink focus:border-primary"
+            />
+            <span className="text-ink-faint">:</span>
+            <input
+              inputMode="numeric"
+              value={aa}
+              onChange={(e) => setAa(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              placeholder="–"
+              className="scoreboard h-11 w-14 rounded-xl border-2 border-line-strong bg-surface-2 text-center text-xl text-ink focus:border-primary"
+            />
+            <button
+              disabled={adminBusy}
+              onClick={() => adminSave('FINISHED')}
+              className="grad-primary ml-auto rounded-xl px-3 py-2 text-sm font-bold text-on-primary disabled:opacity-50"
+            >
+              Finalizar
+            </button>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button disabled={adminBusy} onClick={() => adminSave('LIVE')} className="flex-1 rounded-xl border border-line-strong bg-surface-2 py-1.5 text-xs font-bold disabled:opacity-50">
+              En juego
+            </button>
+            <button disabled={adminBusy} onClick={() => adminSave('SCHEDULED')} className="flex-1 rounded-xl border border-line-strong bg-surface-2 py-1.5 text-xs font-bold disabled:opacity-50">
+              Reabrir
+            </button>
+          </div>
+          {adminMsg && (
+            <p className={`mt-2 text-xs font-bold ${adminMsg.startsWith('✓') ? 'text-primary' : 'text-loss'}`}>{adminMsg}</p>
+          )}
+        </div>
+      )}
 
       <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">
         {onCopy ? 'Predicciones (toca para copiar)' : started ? 'Porras de la sala' : 'Predicciones'}

@@ -209,16 +209,32 @@ export interface Profile {
   id: string
   display_name: string
   avatar_url: string | null
+  is_admin: boolean
 }
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, avatar_url')
+    .select('id, display_name, avatar_url, is_admin')
     .eq('id', userId)
     .maybeSingle()
   if (error) throw error
   return data as Profile | null
+}
+
+export async function adminSetMatch(
+  matchId: number,
+  home: number,
+  away: number,
+  status: 'SCHEDULED' | 'LIVE' | 'FINISHED',
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_match', {
+    p_match: matchId,
+    p_home: home,
+    p_away: away,
+    p_status: status,
+  })
+  if (error) throw error
 }
 
 export async function updateProfile(
