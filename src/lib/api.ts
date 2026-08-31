@@ -174,6 +174,12 @@ export async function getMatches(roundId: number): Promise<Match[]> {
   return (data ?? []) as Match[]
 }
 
+export async function getMatch(matchId: number): Promise<Match | null> {
+  const { data, error } = await supabase.from('matches').select('*').eq('id', matchId).maybeSingle()
+  if (error) throw error
+  return (data ?? null) as Match | null
+}
+
 // ---------------- Segmentos (jornadas partidas por fecha) ----------------
 // Una jornada puede tener partidos muy separados en el tiempo (p. ej. un
 // adelantado un jueves y el resto dos semanas después). Para la navegación y la

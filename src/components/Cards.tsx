@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   adminSetMatch,
   ensureMyCard,
+  getMatch,
   getMatches,
   getMatchPredictions,
   getMembers,
@@ -422,16 +423,40 @@ export function MatchDetailSheet({
   onChanged?: () => void
 }) {
   const [rows, setRows] = useState<MatchPrediction[] | null>(null)
+  const [cur, setCur] = useState<Match>(match)
   const [ah, setAh] = useState(match.home_goals != null ? String(match.home_goals) : '')
   const [aa, setAa] = useState(match.away_goals != null ? String(match.away_goals) : '')
   const [adminBusy, setAdminBusy] = useState(false)
   const [adminMsg, setAdminMsg] = useState<string | null>(null)
 
+  // Autorefresco en vivo mientras la ficha está abierta: marcador, minuto,
+  // goleadores y puntos de las porras. Se detiene al finalizar el partido.
   useEffect(() => {
-    getMatchPredictions(poolId, match.id)
-      .then(setRows)
-      .catch(() => setRows([]))
-  }, [poolId, match.id])
+    let alive = true
+    let iv: ReturnType<typeof setInterval> | undefined
+    setCur(match)
+    const tick = () => {
+      getMatchPredictions(poolId, match.id)
+        .then((r) => alive && setRows(r))
+        .catch(() => alive && setRows((prev) => prev ?? []))
+      getMatch(match.id)
+        .then((mm) => {
+          if (!alive || !mm) return
+          setCur(mm)
+          if (mm.status === 'FINISHED' && iv) {
+            clearInterval(iv)
+            iv = undefined
+          }
+        })
+        .catch(() => {})
+    }
+    tick()
+    if (match.status !== 'FINISHED') iv = setInterval(tick, 15000)
+    return () => {
+      alive = false
+      if (iv) clearInterval(iv)
+    }
+  }, [poolId, match.id, match.status])
 
   async function adminSave(st: 'FINISHED' | 'LIVE' | 'SCHEDULED') {
     if (st !== 'SCHEDULED' && (ah === '' || aa === '')) {
@@ -444,6 +469,8 @@ export function MatchDetailSheet({
       await adminSetMatch(match.id, Number(ah || 0), Number(aa || 0), st)
       setAdminMsg('✓ Guardado')
       onChanged?.()
+      getMatch(match.id).then((mm) => mm && setCur(mm)).catch(() => {})
+      getMatchPredictions(poolId, match.id).then(setRows).catch(() => {})
       setTimeout(() => setAdminMsg(null), 1500)
     } catch (e) {
       setAdminMsg((e as Error).message)
@@ -454,21 +481,21 @@ export function MatchDetailSheet({
 
   const nameOf = (id: string) => members.find((m) => m.user_id === id)?.display_name ?? '—'
   const avatarOf = (id: string) => members.find((m) => m.user_id === id)?.avatar_url ?? null
-  const started = new Date(match.kickoff).getTime() <= Date.now()
-  const finished = match.status === 'FINISHED'
-  const live = match.status === 'LIVE'
-  const paused = match.live_status === 'PAUSED'
+  const started = new Date(cur.kickoff).getTime() <= Date.now()
+  const finished = cur.status === 'FINISHED'
+  const live = cur.status === 'LIVE'
+  const paused = cur.live_status === 'PAUSED'
   const statusLabel = finished
     ? 'FINAL'
     : paused
       ? 'DESCANSO'
       : live
-        ? match.minute != null
-          ? `EN JUEGO ${match.minute}'`
+        ? cur.minute != null
+          ? `EN JUEGO ${cur.minute}'`
           : 'EN JUEGO'
-        : fmtShort(match.kickoff)
+        : fmtShort(cur.kickoff)
   const score =
-    started && match.home_goals != null ? `${match.home_goals} – ${match.away_goals}` : '– : –'
+    started && cur.home_goals != null ? `${cur.home_goals} – ${cur.away_goals}` : '– : –'
 
   return (
     <Sheet title="Detalle del partido" onClose={onClose}>
@@ -476,8 +503,8 @@ export function MatchDetailSheet({
       <div className="mt-2 rounded-2xl border border-line bg-surface-2 p-4">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="flex flex-col items-center gap-1.5">
-            <TeamCrest src={match.home_crest} short={match.home_short} size={40} />
-            <span className="line-clamp-2 text-center text-xs font-semibold">{match.home_team}</span>
+            <TeamCrest src={cur.home_crest} short={cur.home_short} size={40} />
+            <span className="line-clamp-2 text-center text-xs font-semibold">{cur.home_team}</span>
           </div>
           <div className="text-center">
             <div className="scoreboard text-3xl leading-none">{score}</div>
@@ -496,23 +523,23 @@ export function MatchDetailSheet({
             </div>
           </div>
           <div className="flex flex-col items-center gap-1.5">
-            <TeamCrest src={match.away_crest} short={match.away_short} size={40} />
-            <span className="line-clamp-2 text-center text-xs font-semibold">{match.away_team}</span>
+            <TeamCrest src={cur.away_crest} short={cur.away_short} size={40} />
+            <span className="line-clamp-2 text-center text-xs font-semibold">{cur.away_team}</span>
           </div>
         </div>
-        {match.ht_home != null && (
+        {cur.ht_home != null && (
           <p className="nums mt-2 text-center text-[11px] text-ink-faint">
-            Descanso: {match.ht_home}–{match.ht_away}
+            Descanso: {cur.ht_home}–{cur.ht_away}
           </p>
         )}
       </div>
 
-      {match.scorers && match.scorers.length > 0 && (
+      {cur.scorers && cur.scorers.length > 0 && (
         <div className="mt-3 rounded-2xl border border-line bg-surface-2 p-3">
           <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-faint">Goleadores</p>
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
-              {match.scorers.filter((s) => s.t === 'home').map((s, i) => (
+              {(cur.scorers ?? []).filter((s) => s.t === 'home').map((s, i) => (
                 <div key={i} className="flex items-center gap-1.5">
                   <span className="text-ink-faint">⚽</span>
                   <span className="truncate font-semibold">{s.p}</span>
@@ -523,7 +550,7 @@ export function MatchDetailSheet({
               ))}
             </div>
             <div className="space-y-1 text-right">
-              {match.scorers.filter((s) => s.t === 'away').map((s, i) => (
+              {(cur.scorers ?? []).filter((s) => s.t === 'away').map((s, i) => (
                 <div key={i} className="flex items-center justify-end gap-1.5">
                   {s.d === 'Penalty' && <span className="text-[10px] text-ink-faint">(pen)</span>}
                   {s.d === 'Own Goal' && <span className="text-[10px] text-ink-faint">(p.p.)</span>}
