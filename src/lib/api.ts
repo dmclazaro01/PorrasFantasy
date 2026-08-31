@@ -146,9 +146,12 @@ export async function listRounds(competitionId: number): Promise<Round[]> {
     .from('rounds')
     .select('*')
     .eq('competition_id', competitionId)
-    .order('deadline', { ascending: true, nullsFirst: true })
   if (error) throw error
-  return (data ?? []) as Round[]
+  // Ordenar por número de jornada (no por deadline): un partido adelantado de
+  // una jornada superior no debe desordenar la barra (3, 4, 5, 6…), y el orden
+  // textual del nombre situaría "Jornada 10" antes que "Jornada 3".
+  const md = (r: Round) => parseInt((r.name.match(/\d+/) ?? ['0'])[0], 10)
+  return ((data ?? []) as Round[]).sort((a, b) => md(a) - md(b))
 }
 
 export async function getMatches(roundId: number): Promise<Match[]> {
