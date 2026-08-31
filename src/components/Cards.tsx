@@ -555,8 +555,8 @@ export function MatchDetailSheet({
             .slice()
             .sort((a, b) => (b.points ?? -1) - (a.points ?? -1))
             .map((r) => {
-              const good = (r.points ?? 0) > 0
-              const isExact = (r.points ?? 0) >= exactPts
+              const pts = r.points ?? 0
+              const isExact = pts >= exactPts
               return (
                 <li
                   key={r.user_id}
@@ -570,10 +570,16 @@ export function MatchDetailSheet({
                   {finished && (
                     <span
                       className={`nums rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
-                        good ? (isExact ? 'grad-gold text-on-primary' : 'bg-win text-on-primary') : 'bg-surface-3 text-ink-faint'
+                        pts > 0
+                          ? isExact
+                            ? 'grad-gold text-on-primary'
+                            : 'bg-win text-on-primary'
+                          : pts < 0
+                            ? 'bg-loss/15 text-loss'
+                            : 'bg-surface-3 text-ink-faint'
                       }`}
                     >
-                      {good ? `+${r.points}` : '0'}
+                      {pts > 0 ? `+${pts}` : pts}
                     </span>
                   )}
                   {onCopy && (

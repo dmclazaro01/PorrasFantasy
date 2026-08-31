@@ -6,6 +6,7 @@ import {
   getMatches,
   getMyPredictions,
   getMembers,
+  getCurrentRoundId,
   getPool,
   getProfile,
   getRoundStandings,
@@ -50,13 +51,20 @@ export default function Pool() {
       setLoadedRounds(true)
       return
     }
-    listRounds(pool.competition_id).then((rs) => {
+    listRounds(pool.competition_id).then(async (rs) => {
       setRounds(rs)
-      const latest = rs[rs.length - 1] ?? null
-      setLatestRound(latest)
-      setSelectedRoundId(latest?.id ?? null)
+      let curId: number | null = null
+      try {
+        curId = await getCurrentRoundId(pool.competition_id!)
+      } catch {
+        /* ignore */
+      }
+      // jornada en curso; si todas acabaron, la última
+      const current = rs.find((r) => r.id === curId) ?? rs[rs.length - 1] ?? null
+      setLatestRound(current)
+      setSelectedRoundId(current?.id ?? null)
       setLoadedRounds(true)
-      if (latest) ensureMyCard(pool.id, latest.id).then(setMyCard).catch(() => {})
+      if (current) ensureMyCard(pool.id, current.id).then(setMyCard).catch(() => {})
     })
   }, [pool])
 
@@ -120,10 +128,7 @@ export default function Pool() {
         }
       />
 
-      <div className="flex-1 px-4 pb-24 pt-4">
-        {section !== 'cartas' && (
-          <RoundSwitcher rounds={rounds} selectedId={selectedRoundId} onSelect={setSelectedRoundId} />
-        )}
+      <div className="flex-1 px-4 pb-32 pt-4">
         {section === 'predicciones' &&
           (loadedRounds ? (
             <PrediccionesSection pool={pool} round={selectedRound} />
@@ -136,12 +141,17 @@ export default function Pool() {
         )}
       </div>
 
-      <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
+      <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
+        {section !== 'cartas' && (
+          <JornadaBar rounds={rounds} selectedId={selectedRoundId} onSelect={setSelectedRoundId} />
+        )}
+        <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
+      </div>
     </div>
   )
 }
 
-function RoundSwitcher({
+function JornadaBar({
   rounds,
   selectedId,
   onSelect,
@@ -150,26 +160,28 @@ function RoundSwitcher({
   selectedId: number | null
   onSelect: (id: number) => void
 }) {
-  if (rounds.length <= 1) return null
+  if (rounds.length === 0) return null
   const idx = rounds.findIndex((r) => r.id === selectedId)
   return (
-    <div className="mb-3 flex items-center justify-between rounded-2xl border border-line bg-surface-2 px-2 py-1.5">
+    <div className="flex items-center justify-between border-b border-line px-2 py-1.5">
       <button
         disabled={idx <= 0}
         onClick={() => idx > 0 && onSelect(rounds[idx - 1].id)}
-        className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft disabled:opacity-30"
+        className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
         aria-label="Jornada anterior"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        Ant.
       </button>
       <span className="text-sm font-bold">{rounds[idx]?.name ?? 'Jornada'}</span>
       <button
         disabled={idx >= rounds.length - 1}
         onClick={() => idx < rounds.length - 1 && onSelect(rounds[idx + 1].id)}
-        className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft disabled:opacity-30"
+        className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
         aria-label="Jornada siguiente"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        Sig.
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
       </button>
     </div>
   )
@@ -190,8 +202,7 @@ function PoolNav({
     { key: 'cartas', label: 'Cartas', emoji: '🃏', dot: hasCard },
   ]
   return (
-    <nav className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
-      <div className="flex">
+    <div className="flex">
         {items.map((it) => (
           <button
             key={it.key}
@@ -205,8 +216,7 @@ function PoolNav({
             {it.dot && <span className="absolute right-[26%] top-1.5 h-2 w-2 rounded-full bg-primary ring-2 ring-surface" />}
           </button>
         ))}
-      </div>
-    </nav>
+    </div>
   )
 }
 
@@ -630,10 +640,17 @@ function StatusTag({
 }
 
 function PointsStamp({ points, exactPts }: { points: number; exactPts: number }) {
-  if (points <= 0) {
+  if (points < 0) {
+    return (
+      <span className="nums inline-flex -rotate-2 items-center rounded-lg border-2 border-loss/50 bg-loss/15 px-2.5 py-1 text-sm font-bold uppercase text-loss">
+        {points} pts
+      </span>
+    )
+  }
+  if (points === 0) {
     return (
       <span className="nums inline-flex -rotate-2 items-center rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1 text-sm font-bold uppercase text-ink-faint">
-        {points} pts
+        0 pts
       </span>
     )
   }

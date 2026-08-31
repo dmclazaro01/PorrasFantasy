@@ -134,6 +134,13 @@ export async function getLatestRound(competitionId: number): Promise<Round | nul
   return data
 }
 
+/** Jornada en curso (la del partido no finalizado más próximo). null si todas acabaron. */
+export async function getCurrentRoundId(competitionId: number): Promise<number | null> {
+  const { data, error } = await supabase.rpc('current_round_id', { p_comp: competitionId })
+  if (error) throw error
+  return (data as number | null) ?? null
+}
+
 export async function listRounds(competitionId: number): Promise<Round[]> {
   const { data, error } = await supabase
     .from('rounds')
