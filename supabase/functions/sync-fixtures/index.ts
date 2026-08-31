@@ -106,12 +106,13 @@ Deno.serve(async (_req: Request) => {
       }
     }
 
-    // Partidos corregidos a mano: no pisar su marcador/estado.
-    const { data: ovr } = await db
+    // Estado actual en BD por partido (para no pisar directo/finales).
+    const { data: existingRows } = await db
       .from('matches')
-      .select('api_fixture_id')
-      .eq('manual_override', true)
-    const overridden = new Set((ovr ?? []).map((r) => r.api_fixture_id))
+      .select('api_fixture_id, status, manual_override')
+    const existing = new Map(
+      (existingRows ?? []).map((r) => [r.api_fixture_id, r]),
+    )
 
     // Calendario (siempre): crea partidos nuevos y refresca horario/jornada.
     const scheduleRows = matches
@@ -132,17 +133,30 @@ Deno.serve(async (_req: Request) => {
       await db.from('matches').upsert(scheduleRows, { onConflict: 'api_fixture_id' })
     }
 
-    // Resultado/estado: solo los NO corregidos a mano.
+    // Resultado/estado: football-data NO es la fuente en vivo (la lleva
+    // sync-live/API-Football). Aquí solo RELLENAMOS finales que falten, sin
+    // pisar nunca datos en directo/finales ya presentes: escribimos únicamente
+    // cuando football-data marca FINISHED y en BD el partido sigue SCHEDULED
+    // (y no está corregido a mano). Así el cron de calendario nunca revierte un
+    // marcador en vivo a SCHEDULED/null.
     const resultRows = matches
-      .filter((m) => !overridden.has(m.id))
+      .filter((m) => {
+        const ex = existing.get(m.id)
+        return (
+          mapStatus(m.status) === 'FINISHED' &&
+          ex &&
+          ex.status === 'SCHEDULED' &&
+          !ex.manual_override
+        )
+      })
       .map((m) => ({
         api_fixture_id: m.id,
-        status: mapStatus(m.status),
+        status: 'FINISHED',
         home_goals: m.score?.fullTime?.home ?? null,
         away_goals: m.score?.fullTime?.away ?? null,
         ht_home: m.score?.halfTime?.home ?? null,
         ht_away: m.score?.halfTime?.away ?? null,
-        live_status: m.status,
+        live_status: 'FINISHED',
       }))
     if (resultRows.length) {
       await db.from('matches').upsert(resultRows, { onConflict: 'api_fixture_id' })
@@ -151,7 +165,7 @@ Deno.serve(async (_req: Request) => {
     return Response.json({
       rounds: roundIdByMatchday.size,
       matches: matches.length,
-      overridden: overridden.size,
+      backfilledFinals: resultRows.length,
     })
   } catch (e) {
     return new Response(`Error: ${e instanceof Error ? e.message : String(e)}`, { status: 500 })
