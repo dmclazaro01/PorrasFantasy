@@ -83,30 +83,36 @@ function fmtShort(iso: string) {
 
 function Sheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      prev?.focus?.()
+    }
   }, [onClose])
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm lg:items-center lg:p-6"
       onClick={onClose}
     >
       <div
-        className="safe-bottom max-h-[85dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-5 pb-6 pt-3"
+        className="safe-bottom max-h-[85dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-5 pb-6 pt-3 lg:max-h-[85vh] lg:max-w-[560px] lg:rounded-2xl lg:border"
         style={{ animation: 'slideup 0.3s var(--ease-out)' }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" />
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong lg:hidden" />
         <div className="mb-1 flex items-center justify-between gap-2">
           <h3 className="text-xl font-bold">{title}</h3>
           <button
             onClick={onClose}
             aria-label="Cerrar"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-soft hover:bg-surface-3 active:brightness-110"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-soft hover:bg-surface-3 active:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
@@ -166,15 +172,17 @@ export function ProfileSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm lg:items-center lg:p-6"
       onClick={onClose}
     >
       <div
-        className="safe-bottom max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-5 pb-8 pt-3"
+        className="safe-bottom max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-5 pb-8 pt-3 lg:max-h-[85vh] lg:max-w-[560px] lg:rounded-2xl lg:border"
         style={{ animation: 'slideup 0.3s var(--ease-out)' }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" />
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong lg:hidden" />
 
         <div className="flex items-center gap-3">
           <Avatar url={avatarUrl} name={displayName} size={52} />
@@ -371,7 +379,7 @@ export function CartasSection({
       </div>
 
       <p className="mb-2 px-1 text-sm font-semibold text-ink-soft">La baraja</p>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
         {ORDER.map((type) => {
           const meta = CARD_META[type]
           const mine = myCard?.type === type
