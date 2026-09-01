@@ -122,9 +122,8 @@ function SetPassword({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="app-shell">
-      <div className="flex flex-1 items-center justify-center px-5 py-8">
-        <div className="card w-full max-w-sm overflow-hidden">
+    <div className="min-h-dvh bg-bg bg-[var(--grad-pitch)] bg-no-repeat flex items-center justify-center px-5 py-8 lg:px-8">
+      <div className="card w-full max-w-sm overflow-hidden">
           <div className="grad-hero px-6 pb-6 pt-6 text-white">
             <h1 className="text-2xl text-white">Nueva contraseña</h1>
             <p className="mt-1 text-sm text-white/85">Elige una contraseña para tu cuenta.</p>
@@ -146,7 +145,6 @@ function SetPassword({ onDone }: { onDone: () => void }) {
             </Button>
           </form>
         </div>
-      </div>
     </div>
   )
 }

@@ -55,9 +55,8 @@ export default function Auth() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="flex flex-1 items-center justify-center px-5 py-8 lg:px-8">
-        <div className="card w-full max-w-sm overflow-hidden lg:max-w-5xl lg:grid lg:grid-cols-2">
+    <div className="min-h-dvh bg-bg bg-[var(--grad-pitch)] bg-no-repeat flex items-center justify-center px-5 py-8 lg:px-8">
+      <div className="card w-full max-w-sm overflow-hidden lg:max-w-5xl lg:grid lg:grid-cols-2">
           {/* Cabecera con gradiente */}
           <div className="grad-hero relative overflow-hidden px-6 pb-7 pt-7 text-white lg:flex lg:flex-col lg:justify-center lg:px-10">
             <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-2xl" />
@@ -143,7 +142,6 @@ export default function Auth() {
             </form>
           </div>
         </div>
-      </div>
     </div>
   )
 }
