@@ -264,13 +264,13 @@ function HistoryCard({ r, exactPts }: { r: HistoryEntry; exactPts: number }) {
   return (
     <div className={`relative flex aspect-square flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border ${cardCls}`}>
       {r.home_crest && (
-        <img src={r.home_crest} alt="" className="pointer-events-none absolute -left-2 top-1/2 h-14 w-14 -translate-y-1/2 object-contain opacity-10" />
+        <img src={r.home_crest} alt="" className="pointer-events-none absolute -left-1 top-1/2 h-16 w-16 -translate-y-1/2 object-contain opacity-40" />
       )}
       {r.away_crest && (
-        <img src={r.away_crest} alt="" className="pointer-events-none absolute -right-2 top-1/2 h-14 w-14 -translate-y-1/2 object-contain opacity-10" />
+        <img src={r.away_crest} alt="" className="pointer-events-none absolute -right-1 top-1/2 h-16 w-16 -translate-y-1/2 object-contain opacity-40" />
       )}
-      <div className="nums relative text-2xl font-extrabold leading-none">
-        {g(r.home_goals)} <span className="opacity-40">:</span> {g(r.away_goals)}
+      <div className="nums relative text-2xl font-black leading-none drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+        {g(r.home_goals)} <span className="opacity-50">:</span> {g(r.away_goals)}
       </div>
       <span className="relative rounded-md border border-dashed border-current/40 px-1.5 py-0.5 text-[10px] font-semibold leading-none opacity-70">
         {r.pred_home}-{r.pred_away}
