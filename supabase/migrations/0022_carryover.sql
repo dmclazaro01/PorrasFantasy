@@ -23,7 +23,7 @@ grant select on porra.pool_carryover to authenticated, service_role;
 alter table porra.pool_carryover enable row level security;
 drop policy if exists pool_carryover_read on porra.pool_carryover;
 create policy pool_carryover_read on porra.pool_carryover
-  for select to authenticated using (porra.is_pool_member(pool_id));
+  for select to authenticated using (porra.is_pool_member(pool_id, auth.uid()));
 
 -- General = arrastre + puntos de jornadas posteriores al corte.
 create or replace view porra.pool_standings
