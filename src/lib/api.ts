@@ -364,6 +364,30 @@ export async function updateProfile(
 
 // ---------------- Clasificación por jornada ----------------
 
+// ---------------- Bote (castigo a los dos últimos de cada jornada) ----------------
+
+export interface BoteStanding {
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  owed: number
+  rounds_paid: number
+}
+
+export async function getBote(poolId: string): Promise<BoteStanding[]> {
+  const { data, error } = await supabase
+    .from('pool_bote')
+    .select('user_id, display_name, avatar_url, owed, rounds_paid')
+    .eq('pool_id', poolId)
+    .order('owed', { ascending: false })
+  if (error) throw error
+  // numeric llega como string desde PostgREST; lo normalizamos a número.
+  return (data ?? []).map((r) => ({
+    ...(r as BoteStanding),
+    owed: Number((r as { owed: number | string }).owed),
+  }))
+}
+
 export async function getRoundStandings(poolId: string, roundId: number): Promise<Standing[]> {
   const { data, error } = await supabase
     .from('pool_round_standings')

@@ -5,6 +5,7 @@ import {
   buildSegments,
   currentSegmentKey,
   ensureMyCard,
+  getBote,
   getMatches,
   getMyPredictions,
   getMembers,
@@ -16,6 +17,7 @@ import {
   listMatchMeta,
   listRounds,
   savePrediction,
+  type BoteStanding,
   type Card,
   type Match,
   type MatchMeta,
@@ -736,13 +738,15 @@ function PointsStamp({ points, exactPts }: { points: number; exactPts: number })
 const MEDAL = ['🥇', '🥈', '🥉']
 
 function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }) {
-  const [scope, setScope] = useState<'general' | 'jornada'>('general')
+  const [scope, setScope] = useState<'general' | 'jornada' | 'bote'>('general')
   const [general, setGeneral] = useState<Standing[] | null>(null)
   const [jornada, setJornada] = useState<Standing[] | null>(null)
+  const [bote, setBote] = useState<BoteStanding[] | null>(null)
 
   useEffect(() => {
     function load() {
       getStandings(pool.id).then(setGeneral).catch(() => setGeneral([]))
+      getBote(pool.id).then(setBote).catch(() => setBote([]))
       if (round) getRoundStandings(pool.id, round.id).then(setJornada).catch(() => setJornada([]))
       else setJornada([])
     }
@@ -751,25 +755,88 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }
     return () => clearInterval(iv)
   }, [pool.id, round?.id])
 
-  const rows = scope === 'general' ? general : jornada
+  const tab = (key: typeof scope, label: string) => (
+    <button
+      onClick={() => setScope(key)}
+      className={`min-h-9 flex-1 rounded-xl px-1 text-sm font-bold transition-all ${scope === key ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div>
       <div className="mb-3 flex gap-1 rounded-2xl bg-surface-2 p-1">
-        <button
-          onClick={() => setScope('general')}
-          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'general' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
-        >
-          General
-        </button>
-        <button
-          onClick={() => setScope('jornada')}
-          className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'jornada' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
-        >
-          {round?.name ?? 'Jornada'}
-        </button>
+        {tab('general', 'General')}
+        {tab('jornada', round?.name ?? 'Jornada')}
+        {tab('bote', 'Bote')}
       </div>
-      <StandingsList rows={rows} />
+      {scope === 'bote' ? (
+        <BoteList rows={bote} />
+      ) : (
+        <StandingsList rows={scope === 'general' ? general : jornada} />
+      )}
+    </div>
+  )
+}
+
+function fmtEuro(n: number) {
+  return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)} €`
+}
+
+function BoteList({ rows }: { rows: BoteStanding[] | null }) {
+  if (rows === null) {
+    return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
+  }
+  const total = rows.reduce((s, r) => s + r.owed, 0)
+  const debtors = rows.filter((r) => r.owed > 0)
+
+  return (
+    <div>
+      <div className="ticket mb-3 overflow-hidden">
+        <div className="grad-hero flex items-center justify-between px-4 py-3.5 text-white">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">Bote acumulado</div>
+            <h2 className="mt-0.5 text-lg text-white">El pozo de la porra</h2>
+          </div>
+          <div className="scoreboard rounded-xl bg-black/25 px-3 py-1.5 text-center">
+            <div className="text-2xl leading-none">{fmtEuro(total)}</div>
+            <div className="text-[10px] font-medium text-white/60">en juego</div>
+          </div>
+        </div>
+        <p className="px-4 py-2.5 text-[11px] text-ink-faint">
+          Al terminar cada jornada, el último paga 2 € y el penúltimo 1 €. En caso de empate se reparte el castigo.
+        </p>
+      </div>
+
+      {debtors.length === 0 ? (
+        <div className="ticket">
+          <EmptyState title="El bote está a cero">
+            Aún no ha terminado ninguna jornada con castigo. Cuando acabe, aquí verás quién paga.
+          </EmptyState>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((r) => {
+            const owes = r.owed > 0
+            return (
+              <li
+                key={r.user_id}
+                className={`flex items-center gap-3 rounded-2xl border p-3 ${owes ? 'border-loss/30 bg-loss/5' : 'border-line bg-surface'}`}
+              >
+                <Avatar url={r.avatar_url} name={r.display_name} size={38} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold">{r.display_name}</p>
+                  <p className="nums text-xs text-ink-faint">
+                    {owes ? `castigado en ${r.rounds_paid} jornada${r.rounds_paid === 1 ? '' : 's'}` : 'sin castigos'}
+                  </p>
+                </div>
+                <span className={`scoreboard text-2xl ${owes ? 'text-loss' : 'text-ink-faint'}`}>{fmtEuro(r.owed)}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </div>
   )
 }
