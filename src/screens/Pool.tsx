@@ -156,33 +156,19 @@ export default function Pool() {
             ) : (
               <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
             ))}
-          <div className="lg:hidden">
-            {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
-          </div>
+          {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
           {section === 'cartas' && (
             <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
           )}
-          <div className="hidden lg:block">
-            {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
-            {section === 'cartas' && <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />}
-          </div>
-          {/* Mobile cartas already handled; desktop predicciones main only */}
         </div>
-        <aside className="hidden min-w-0 lg:block lg:sticky lg:top-4 lg:h-fit lg:space-y-4">
-          {/* Desktop: panel contextual solo en predicciones para no duplicar */}
-          {section === 'predicciones' && (
+        {section === 'predicciones' && (
+          <aside className="hidden min-w-0 lg:block lg:sticky lg:top-4 lg:h-fit lg:space-y-4">
             <div className="card p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-faint">Clasificación rápida</p>
               <RankingSection pool={pool} round={selectedRound} />
             </div>
-          )}
-          {section === 'ranking' && (
-            <div className="card p-4">
-              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-faint">Tu carta</p>
-              <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
-            </div>
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
 
       <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur lg:hidden">
