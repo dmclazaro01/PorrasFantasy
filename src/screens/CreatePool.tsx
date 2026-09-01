@@ -46,17 +46,42 @@ export default function CreatePool() {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[900px]">
       <ScreenHeader title="Crear porra" back="/" />
-      <form onSubmit={submit} className="flex flex-1 flex-col gap-6 px-5 py-6">
-        <Field
-          label="Nombre de la porra"
-          placeholder="Los Cracks del Bar"
-          required
-          maxLength={40}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      <form onSubmit={submit} className="flex flex-1 flex-col gap-6 px-5 py-6 lg:grid lg:grid-cols-2 lg:gap-8 lg:px-8">
+        <div className="space-y-6">
+          <Field
+            label="Nombre de la porra"
+            placeholder="Los Cracks del Bar"
+            required
+            maxLength={40}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="card overflow-hidden lg:hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="flex w-full items-center justify-between p-4 text-left"
+            >
+              <span>
+                <span className="block text-sm font-semibold">Puntuación</span>
+                <span className="nums text-xs text-ink-faint">
+                  {p1x2} pts acierto · {pExact} pts exacto
+                </span>
+              </span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-ink-faint transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+            {showAdvanced && (
+              <div className="grid grid-cols-2 gap-3 border-t border-line p-4">
+                <Field label="Acertar 1·X·2" type="number" min={0} max={50} value={p1x2} onChange={(e) => setP1x2(Number(e.target.value))} />
+                <Field label="Resultado exacto" type="number" min={0} max={50} value={pExact} onChange={(e) => setPExact(Number(e.target.value))} />
+              </div>
+            )}
+          </div>
+        </div>
 
         <div>
           <span className="mb-2 block text-sm font-semibold text-ink-soft">Competición</span>
@@ -109,39 +134,28 @@ export default function CreatePool() {
           )}
         </div>
 
-        <div className="card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="flex w-full items-center justify-between p-4 text-left"
-          >
-            <span>
-              <span className="block text-sm font-semibold">Puntuación</span>
-              <span className="nums text-xs text-ink-faint">
-                {p1x2} pts acierto · {pExact} pts exacto
-              </span>
-            </span>
-            <svg
-              width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              className={`text-ink-faint transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
-            >
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </button>
-          {showAdvanced && (
-            <div className="grid grid-cols-2 gap-3 border-t border-line p-4">
+        <div className="hidden lg:block lg:space-y-6">
+          <div className="card p-5">
+            <p className="mb-3 block text-sm font-semibold">Puntuación</p>
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Acertar 1·X·2" type="number" min={0} max={50} value={p1x2} onChange={(e) => setP1x2(Number(e.target.value))} />
               <Field label="Resultado exacto" type="number" min={0} max={50} value={pExact} onChange={(e) => setPExact(Number(e.target.value))} />
             </div>
-          )}
-        </div>
-
-        {error && <p className="text-sm font-medium text-loss">{error}</p>}
-
-        <div className="mt-auto">
+            <p className="mt-2 text-xs text-ink-faint">Se aplica a toda la sala. Luego no se puede cambiar.</p>
+          </div>
+          {error && <p className="text-sm font-medium text-loss">{error}</p>}
           <Button type="submit" full loading={loading} disabled={!name.trim() || compId === null}>
             Crear porra
           </Button>
+        </div>
+
+        <div className="lg:hidden">
+          {error && <p className="text-sm font-medium text-loss">{error}</p>}
+          <div className="mt-4">
+            <Button type="submit" full loading={loading} disabled={!name.trim() || compId === null}>
+              Crear porra
+            </Button>
+          </div>
         </div>
       </form>
     </div>

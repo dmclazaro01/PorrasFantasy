@@ -40,8 +40,8 @@ export default function Home() {
   const name = profile?.display_name ?? 'Tú'
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="safe-top px-5 pb-1 pt-5">
+    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1120px]">
+      <header className="safe-top px-5 pb-1 pt-5 lg:px-8 lg:pt-8">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">La Porra ⚽</p>
@@ -55,7 +55,7 @@ export default function Home() {
 
       <InstallBanner />
 
-      <div className="grid grid-cols-2 gap-2.5 px-5 pt-3">
+      <div className="grid grid-cols-2 gap-2.5 px-5 pt-3 lg:px-8">
         <Link to="/crear" className="block">
           <Button full>+ Crear porra</Button>
         </Link>
@@ -66,7 +66,7 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="flex-1 px-5 pb-4 pt-3">
+      <div className="flex-1 px-5 pb-4 pt-3 lg:px-8">
         {pools === null ? (
           <div className="flex justify-center py-16 text-ink-faint">
             <Spinner />
@@ -87,7 +87,7 @@ export default function Home() {
             {error && <p className="px-6 pb-5 text-center text-xs text-loss">{error}</p>}
           </div>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
             {pools.map((p) => (
               <li key={p.id}>
                 <Link
