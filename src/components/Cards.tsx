@@ -7,9 +7,11 @@ import {
   getMatchPredictions,
   getMembers,
   getStandings,
+  getUserHistory,
   playCard,
   type Card,
   type CardType,
+  type HistoryEntry,
   type Match,
   type Member,
   type MatchPrediction,
@@ -113,6 +115,167 @@ function Sheet({ title, children, onClose }: { title: string; children: React.Re
         </div>
         {children}
       </div>
+    </div>
+  )
+}
+
+// ---------------- Perfil de jugador (historial de porras) ----------------
+
+export function ProfileSheet({
+  poolId,
+  userId,
+  displayName,
+  avatarUrl,
+  points,
+  rank,
+  exactPts,
+  currentRoundId,
+  onClose,
+}: {
+  poolId: string
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  points: number
+  rank: number
+  exactPts: number
+  currentRoundId: number | null
+  onClose: () => void
+}) {
+  const [hist, setHist] = useState<HistoryEntry[] | null>(null)
+  const [scope, setScope] = useState<'semanal' | 'general'>('general')
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  useEffect(() => {
+    getUserHistory(poolId, userId).then(setHist).catch(() => setHist([]))
+  }, [poolId, userId])
+
+  const rows =
+    scope === 'semanal' && currentRoundId != null
+      ? (hist ?? []).filter((h) => h.round_id === currentRoundId)
+      : hist ?? []
+  const porras = rows.length
+  const acertadas = rows.filter((r) => (r.points ?? 0) > 0).length
+  const clavadas = rows.filter((r) => (r.points ?? 0) >= exactPts).length
+  const pct = (n: number) => (porras ? Math.round((n / porras) * 100) : 0)
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="safe-bottom max-h-[92dvh] w-full max-w-[440px] overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-5 pb-8 pt-3"
+        style={{ animation: 'slideup 0.3s var(--ease-out)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line-strong" />
+
+        <div className="flex items-center gap-3">
+          <Avatar url={avatarUrl} name={displayName} size={52} />
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-2xl font-extrabold leading-tight">{displayName}</h3>
+            <p className="nums text-sm font-bold text-ink-faint">#{rank}</p>
+          </div>
+          <div className="text-right">
+            <div className="scoreboard text-3xl leading-none text-primary">{points}</div>
+            <div className="text-[10px] font-bold tracking-wide text-ink-faint">PTS</div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-ink-soft hover:bg-surface-3 active:brightness-110"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="mt-4 flex gap-1 rounded-2xl bg-surface-2 p-1">
+          <button
+            onClick={() => setScope('semanal')}
+            className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'semanal' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
+          >
+            Semanal
+          </button>
+          <button
+            onClick={() => setScope('general')}
+            className={`min-h-9 flex-1 rounded-xl text-sm font-bold transition-all ${scope === 'general' ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint'}`}
+          >
+            General
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line bg-surface-2">
+          <ProfileStat big={String(porras)} label="PORRAS" />
+          <ProfileStat big={`${pct(acertadas)}%`} label={`${acertadas} ACERTADAS`} />
+          <ProfileStat big={`${pct(clavadas)}%`} label={`${clavadas} CLAVADAS`} />
+        </div>
+
+        {hist === null ? (
+          <div className="flex justify-center py-10 text-ink-faint"><Spinner /></div>
+        ) : rows.length === 0 ? (
+          <p className="py-10 text-center text-sm text-ink-faint">
+            {scope === 'semanal' ? 'Sin porras en esta jornada.' : 'Todavía no ha jugado ninguna porra.'}
+          </p>
+        ) : (
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            {rows.map((r) => (
+              <HistoryCard key={r.match_id} r={r} exactPts={exactPts} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProfileStat({ big, label }: { big: string; label: string }) {
+  return (
+    <div className="px-2 py-3 text-center">
+      <div className="scoreboard text-2xl leading-none text-ink">{big}</div>
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{label}</div>
+    </div>
+  )
+}
+
+function HistoryCard({ r, exactPts }: { r: HistoryEntry; exactPts: number }) {
+  const pts = r.points
+  const exact = (pts ?? 0) >= exactPts
+  const win = (pts ?? 0) > 0 && !exact
+  const loss = (pts ?? 0) < 0
+  const cardCls = exact
+    ? 'border-primary bg-primary text-on-primary shadow-[0_0_18px_-4px_var(--primary)]'
+    : win
+      ? 'border-win/40 bg-win/10'
+      : loss
+        ? 'border-loss/40 bg-loss/10'
+        : 'border-line bg-surface-2'
+  const ptsCls = exact ? 'text-on-primary' : win ? 'text-win' : loss ? 'text-loss' : 'text-ink-faint'
+  const ptsLabel = pts == null ? '·' : pts > 0 ? `+${pts}` : String(pts)
+  const g = (v: number | null) => (v == null ? '–' : v)
+
+  return (
+    <div className={`relative flex aspect-square flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border ${cardCls}`}>
+      {r.home_crest && (
+        <img src={r.home_crest} alt="" className="pointer-events-none absolute -left-2 top-1/2 h-14 w-14 -translate-y-1/2 object-contain opacity-10" />
+      )}
+      {r.away_crest && (
+        <img src={r.away_crest} alt="" className="pointer-events-none absolute -right-2 top-1/2 h-14 w-14 -translate-y-1/2 object-contain opacity-10" />
+      )}
+      <div className="nums relative text-2xl font-extrabold leading-none">
+        {g(r.home_goals)} <span className="opacity-40">:</span> {g(r.away_goals)}
+      </div>
+      <span className="relative rounded-md border border-dashed border-current/40 px-1.5 py-0.5 text-[10px] font-semibold leading-none opacity-70">
+        {r.pred_home}-{r.pred_away}
+      </span>
+      <span className={`relative text-2xl font-black leading-none ${ptsCls}`}>{ptsLabel}</span>
     </div>
   )
 }

@@ -29,7 +29,7 @@ import {
   type Standing,
 } from '../lib/api'
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
-import { CARD_META, CartasSection, MatchDetailSheet } from '../components/Cards'
+import { CARD_META, CartasSection, MatchDetailSheet, ProfileSheet } from '../components/Cards'
 
 type Section = 'predicciones' | 'ranking' | 'cartas'
 
@@ -742,6 +742,7 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }
   const [general, setGeneral] = useState<Standing[] | null>(null)
   const [jornada, setJornada] = useState<Standing[] | null>(null)
   const [bote, setBote] = useState<BoteStanding[] | null>(null)
+  const [profile, setProfile] = useState<{ userId: string; name: string; avatar: string | null } | null>(null)
 
   useEffect(() => {
     function load() {
@@ -772,10 +773,31 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }
         {tab('bote', 'Bote')}
       </div>
       {scope === 'bote' ? (
-        <BoteList rows={bote} />
+        <BoteList rows={bote} onSelect={(r) => setProfile({ userId: r.user_id, name: r.display_name, avatar: r.avatar_url })} />
       ) : (
-        <StandingsList rows={scope === 'general' ? general : jornada} />
+        <StandingsList
+          rows={scope === 'general' ? general : jornada}
+          onSelect={(r) => setProfile({ userId: r.user_id, name: r.display_name, avatar: r.avatar_url })}
+        />
       )}
+
+      {profile &&
+        (() => {
+          const idx = (general ?? []).findIndex((s) => s.user_id === profile.userId)
+          return (
+            <ProfileSheet
+              poolId={pool.id}
+              userId={profile.userId}
+              displayName={profile.name}
+              avatarUrl={profile.avatar}
+              points={idx >= 0 ? general![idx].points : 0}
+              rank={idx >= 0 ? idx + 1 : 0}
+              exactPts={pool.points_exact}
+              currentRoundId={round?.id ?? null}
+              onClose={() => setProfile(null)}
+            />
+          )
+        })()}
     </div>
   )
 }
@@ -784,7 +806,7 @@ function fmtEuro(n: number) {
   return `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)} €`
 }
 
-function BoteList({ rows }: { rows: BoteStanding[] | null }) {
+function BoteList({ rows, onSelect }: { rows: BoteStanding[] | null; onSelect?: (r: BoteStanding) => void }) {
   if (rows === null) {
     return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
@@ -822,7 +844,8 @@ function BoteList({ rows }: { rows: BoteStanding[] | null }) {
             return (
               <li
                 key={r.user_id}
-                className={`flex items-center gap-3 rounded-2xl border p-3 ${owes ? 'border-loss/30 bg-loss/5' : 'border-line bg-surface'}`}
+                onClick={() => onSelect?.(r)}
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${owes ? 'border-loss/30 bg-loss/5' : 'border-line bg-surface'}`}
               >
                 <Avatar url={r.avatar_url} name={r.display_name} size={38} />
                 <div className="min-w-0 flex-1">
@@ -841,7 +864,7 @@ function BoteList({ rows }: { rows: BoteStanding[] | null }) {
   )
 }
 
-function StandingsList({ rows }: { rows: Standing[] | null }) {
+function StandingsList({ rows, onSelect }: { rows: Standing[] | null; onSelect?: (r: Standing) => void }) {
   if (rows === null) {
     return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
@@ -859,7 +882,8 @@ function StandingsList({ rows }: { rows: Standing[] | null }) {
         return (
           <li
             key={r.user_id}
-            className={`flex items-center gap-3 rounded-2xl border p-3 ${i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'}`}
+            onClick={() => onSelect?.(r)}
+            className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'}`}
           >
             <span className={`grid w-7 shrink-0 place-items-center text-lg ${podium ? '' : 'nums text-sm font-bold text-ink-faint'}`}>
               {podium ? MEDAL[i] : i + 1}

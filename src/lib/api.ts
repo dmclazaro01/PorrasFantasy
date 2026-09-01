@@ -180,6 +180,80 @@ export async function getMatch(matchId: number): Promise<Match | null> {
   return (data ?? null) as Match | null
 }
 
+// ---------------- Historial de porras de un jugador (perfil) ----------------
+
+export interface HistoryEntry {
+  match_id: number
+  round_id: number
+  round_name: string
+  home_team: string
+  away_team: string
+  home_short: string | null
+  away_short: string | null
+  home_crest: string | null
+  away_crest: string | null
+  home_goals: number | null
+  away_goals: number | null
+  status: MatchStatus
+  kickoff: string
+  pred_home: number
+  pred_away: number
+  points: number | null
+}
+
+/** Predicciones de un jugador en partidos ya empezados (el RLS oculta las futuras). */
+export async function getUserHistory(poolId: string, userId: string): Promise<HistoryEntry[]> {
+  const { data, error } = await supabase
+    .from('predictions')
+    .select(
+      'match_id, pred_home, pred_away, points, matches!inner(round_id, home_team, away_team, home_short, away_short, home_crest, away_crest, home_goals, away_goals, status, kickoff, rounds!inner(name))',
+    )
+    .eq('pool_id', poolId)
+    .eq('user_id', userId)
+  if (error) throw error
+  type Row = {
+    match_id: number
+    pred_home: number
+    pred_away: number
+    points: number | null
+    matches: {
+      round_id: number
+      home_team: string
+      away_team: string
+      home_short: string | null
+      away_short: string | null
+      home_crest: string | null
+      away_crest: string | null
+      home_goals: number | null
+      away_goals: number | null
+      status: MatchStatus
+      kickoff: string
+      rounds: { name: string }
+    }
+  }
+  const out = ((data ?? []) as unknown as Row[]).map((r) => ({
+    match_id: r.match_id,
+    round_id: r.matches.round_id,
+    round_name: r.matches.rounds.name,
+    home_team: r.matches.home_team,
+    away_team: r.matches.away_team,
+    home_short: r.matches.home_short,
+    away_short: r.matches.away_short,
+    home_crest: r.matches.home_crest,
+    away_crest: r.matches.away_crest,
+    home_goals: r.matches.home_goals,
+    away_goals: r.matches.away_goals,
+    status: r.matches.status,
+    kickoff: r.matches.kickoff,
+    pred_home: r.pred_home,
+    pred_away: r.pred_away,
+    points: r.points,
+  }))
+  return out
+    .filter((e) => new Date(e.kickoff).getTime() <= Date.now())
+    .sort((a, b) => new Date(b.kickoff).getTime() - new Date(a.kickoff).getTime())
+}
+
 // ---------------- Segmentos (jornadas partidas por fecha) ----------------
 // Una jornada puede tener partidos muy separados en el tiempo (p. ej. un
 // adelantado un jueves y el resto dos semanas después). Para la navegación y la
