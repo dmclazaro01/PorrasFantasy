@@ -122,7 +122,7 @@ export default function Pool() {
     : null
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1280px]">
       <ScreenHeader
         title={pool.name}
         back="/"
@@ -141,20 +141,51 @@ export default function Pool() {
         }
       />
 
-      <div className="flex-1 px-4 pb-32 pt-4">
-        {section === 'predicciones' &&
-          (loadedRounds ? (
-            <PrediccionesSection pool={pool} round={selectedRound} matchIds={selectedSegment?.matchIds ?? null} />
-          ) : (
-            <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
-          ))}
-        {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
-        {section === 'cartas' && (
-          <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
-        )}
+      {/* Desktop JornadaBar replica arriba (sticky tabs) */}
+      {section !== 'cartas' && (
+        <div className="hidden lg:block lg:px-6 lg:pt-4">
+          <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
+        </div>
+      )}
+
+      <div className="flex-1 px-4 pb-32 pt-4 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:px-6 lg:pb-6">
+        <div className="min-w-0">
+          {section === 'predicciones' &&
+            (loadedRounds ? (
+              <PrediccionesSection pool={pool} round={selectedRound} matchIds={selectedSegment?.matchIds ?? null} />
+            ) : (
+              <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
+            ))}
+          <div className="lg:hidden">
+            {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
+          </div>
+          {section === 'cartas' && (
+            <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
+          )}
+          <div className="hidden lg:block">
+            {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
+            {section === 'cartas' && <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />}
+          </div>
+          {/* Mobile cartas already handled; desktop predicciones main only */}
+        </div>
+        <aside className="hidden min-w-0 lg:block lg:sticky lg:top-4 lg:h-fit lg:space-y-4">
+          {/* Desktop: panel contextual solo en predicciones para no duplicar */}
+          {section === 'predicciones' && (
+            <div className="card p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-faint">Clasificación rápida</p>
+              <RankingSection pool={pool} round={selectedRound} />
+            </div>
+          )}
+          {section === 'ranking' && (
+            <div className="card p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-faint">Tu carta</p>
+              <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
+            </div>
+          )}
+        </aside>
       </div>
 
-      <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
+      <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur lg:hidden">
         {section !== 'cartas' && (
           <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
         )}
@@ -176,37 +207,66 @@ function JornadaBar({
   if (segments.length === 0) return null
   const idx = segments.findIndex((s) => s.key === selectedKey)
   const seg = segments[idx]
-  // Si una jornada está partida en varios segmentos, lo indicamos discretamente.
   const sameRound = seg ? segments.filter((s) => s.roundId === seg.roundId) : []
   const partLabel =
     seg && sameRound.length > 1
       ? ` · parte ${sameRound.findIndex((s) => s.key === seg.key) + 1}/${sameRound.length}`
       : ''
   return (
-    <div className="flex items-center justify-between border-b border-line px-2 py-1.5">
-      <button
-        disabled={idx <= 0}
-        onClick={() => idx > 0 && onSelect(segments[idx - 1].key)}
-        className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
-        aria-label="Jornada anterior"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        Ant.
-      </button>
-      <span className="text-sm font-bold">
-        {seg?.name ?? 'Jornada'}
-        {partLabel && <span className="text-ink-faint">{partLabel}</span>}
-      </span>
-      <button
-        disabled={idx >= segments.length - 1}
-        onClick={() => idx < segments.length - 1 && onSelect(segments[idx + 1].key)}
-        className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
-        aria-label="Jornada siguiente"
-      >
-        Sig.
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-      </button>
-    </div>
+    <>
+      {/* Mobile */}
+      <div className="flex items-center justify-between border-b border-line px-2 py-1.5 lg:hidden">
+        <button
+          disabled={idx <= 0}
+          onClick={() => idx > 0 && onSelect(segments[idx - 1].key)}
+          className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
+          aria-label="Jornada anterior"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          Ant.
+        </button>
+        <span className="text-sm font-bold">
+          {seg?.name ?? 'Jornada'}
+          {partLabel && <span className="text-ink-faint">{partLabel}</span>}
+        </span>
+        <button
+          disabled={idx >= segments.length - 1}
+          onClick={() => idx < segments.length - 1 && onSelect(segments[idx + 1].key)}
+          className="flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-bold text-ink-soft hover:bg-surface-2 disabled:opacity-25"
+          aria-label="Jornada siguiente"
+        >
+          Sig.
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
+      </div>
+      {/* Desktop: tablist keyboard-navigable */}
+      <div role="tablist" aria-label="Jornadas" className="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2 lg:rounded-2xl lg:border lg:border-line lg:bg-surface lg:p-2">
+        {segments.map((s) => {
+          const sel = s.key === selectedKey
+          return (
+            <button
+              key={s.key}
+              role="tab"
+              aria-selected={sel}
+              onClick={() => onSelect(s.key)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowRight') {
+                  const n = Math.min(idx + 1, segments.length - 1)
+                  onSelect(segments[n].key)
+                }
+                if (e.key === 'ArrowLeft') {
+                  const p = Math.max(idx - 1, 0)
+                  onSelect(segments[p].key)
+                }
+              }}
+              className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${sel ? 'bg-surface-2 text-primary' : 'text-ink-faint hover:bg-surface-2 hover:text-ink'}`}
+            >
+              {s.name}
+            </button>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -225,7 +285,7 @@ function PoolNav({
     { key: 'cartas', label: 'Cartas', emoji: '🃏', dot: hasCard },
   ]
   return (
-    <div className="flex">
+    <div className="flex lg:hidden">
         {items.map((it) => (
           <button
             key={it.key}
@@ -443,7 +503,7 @@ function PrediccionesSection({
           </div>
         </div>
 
-        <div className="divide-y divide-line">
+        <div className="divide-y divide-line xl:grid xl:grid-cols-2 xl:gap-3 xl:divide-y-0 xl:p-3">
           {visibleMatches.map((m) => {
             const espiaActive =
               !!myEspia && myEspia.match_id === m.id && Date.now() >= new Date(m.kickoff).getTime() - 3600_000
@@ -584,7 +644,7 @@ function MatchRow({
   const awayShown = editable ? input?.a ?? '' : match.away_goals != null ? String(match.away_goals) : ''
 
   return (
-    <div className="px-4 py-4">
+    <div className="px-4 py-4 xl:rounded-2xl xl:border xl:border-line xl:bg-surface/40">
       <div className="mb-3 flex items-center justify-between">
         <span className="nums text-xs font-semibold text-ink-faint">
           {editable ? `Cierra ${fmtTime(match.kickoff)}` : fmtKickoff(match.kickoff)}
@@ -838,27 +898,51 @@ function BoteList({ rows, onSelect }: { rows: BoteStanding[] | null; onSelect?: 
           </EmptyState>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((r) => {
-            const owes = r.owed > 0
-            return (
-              <li
-                key={r.user_id}
-                onClick={() => onSelect?.(r)}
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${owes ? 'border-loss/30 bg-loss/5' : 'border-line bg-surface'}`}
-              >
-                <Avatar url={r.avatar_url} name={r.display_name} size={38} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold">{r.display_name}</p>
-                  <p className="nums text-xs text-ink-faint">
-                    {owes ? `castigado en ${r.rounds_paid} jornada${r.rounds_paid === 1 ? '' : 's'}` : 'sin castigos'}
-                  </p>
-                </div>
-                <span className={`scoreboard text-2xl ${owes ? 'text-loss' : 'text-ink-faint'}`}>{fmtEuro(r.owed)}</span>
-              </li>
-            )
-          })}
-        </ul>
+        <>
+          <ul className="space-y-2 lg:hidden">
+            {rows.map((r) => {
+              const owes = r.owed > 0
+              return (
+                <li
+                  key={r.user_id}
+                  onClick={() => onSelect?.(r)}
+                  className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${owes ? 'border-loss/30 bg-loss/5' : 'border-line bg-surface'}`}
+                >
+                  <Avatar url={r.avatar_url} name={r.display_name} size={38} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold">{r.display_name}</p>
+                    <p className="nums text-xs text-ink-faint">
+                      {owes ? `castigado en ${r.rounds_paid} jornada${r.rounds_paid === 1 ? '' : 's'}` : 'sin castigos'}
+                    </p>
+                  </div>
+                  <span className={`scoreboard text-2xl ${owes ? 'text-loss' : 'text-ink-faint'}`}>{fmtEuro(r.owed)}</span>
+                </li>
+              )
+            })}
+          </ul>
+          <table className="hidden lg:table w-full text-sm">
+            <caption className="sr-only">Bote por jugador</caption>
+            <thead>
+              <tr className="text-xs text-ink-faint">
+                <th className="text-left p-2 font-semibold">Jugador</th>
+                <th className="text-right p-2 font-semibold">Debe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.user_id} onClick={() => onSelect?.(r)} className={`cursor-pointer border-t border-line hover:bg-surface-2 ${r.owed > 0 ? 'bg-loss/5' : ''}`}>
+                  <td className="p-2">
+                    <span className="flex items-center gap-2">
+                      <Avatar url={r.avatar_url} name={r.display_name} size={26} />
+                      <span className="truncate font-semibold">{r.display_name}</span>
+                    </span>
+                  </td>
+                  <td className={`p-2 text-right scoreboard ${r.owed > 0 ? 'text-loss' : 'text-ink-faint'}`}>{fmtEuro(r.owed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   )
@@ -876,27 +960,58 @@ function StandingsList({ rows, onSelect }: { rows: Standing[] | null; onSelect?:
     )
   }
   return (
-    <ul className="space-y-2">
-      {rows.map((r, i) => {
-        const podium = i < 3
-        return (
-          <li
-            key={r.user_id}
-            onClick={() => onSelect?.(r)}
-            className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'}`}
-          >
-            <span className={`grid w-7 shrink-0 place-items-center text-lg ${podium ? '' : 'nums text-sm font-bold text-ink-faint'}`}>
-              {podium ? MEDAL[i] : i + 1}
-            </span>
-            <Avatar url={r.avatar_url} name={r.display_name} size={38} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-bold">{r.display_name}</p>
-              <p className="nums text-xs text-ink-faint">{r.exacts} exactos · {r.partials} aciertos</p>
-            </div>
-            <span className="scoreboard text-2xl text-primary">{r.points}</span>
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      <ul className="space-y-2 lg:hidden">
+        {rows.map((r, i) => {
+          const podium = i < 3
+          return (
+            <li
+              key={r.user_id}
+              onClick={() => onSelect?.(r)}
+              className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition-colors active:brightness-110 hover:border-primary/40 ${i === 0 ? 'border-gold/40 bg-gold-dim' : 'border-line bg-surface'}`}
+            >
+              <span className={`grid w-7 shrink-0 place-items-center text-lg ${podium ? '' : 'nums text-sm font-bold text-ink-faint'}`}>
+                {podium ? MEDAL[i] : i + 1}
+              </span>
+              <Avatar url={r.avatar_url} name={r.display_name} size={38} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold">{r.display_name}</p>
+                <p className="nums text-xs text-ink-faint">{r.exacts} exactos · {r.partials} aciertos</p>
+              </div>
+              <span className="scoreboard text-2xl text-primary">{r.points}</span>
+            </li>
+          )
+        })}
+      </ul>
+      <table className="hidden lg:table w-full text-sm">
+        <caption className="sr-only">Clasificación</caption>
+        <thead>
+          <tr className="text-xs text-ink-faint">
+            <th className="text-left p-2 font-semibold">#</th>
+            <th className="text-left p-2 font-semibold">Jugador</th>
+            <th className="text-right p-2 font-semibold">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.user_id} onClick={() => onSelect?.(r)} className={`cursor-pointer border-t border-line hover:bg-surface-2 ${i === 0 ? 'bg-gold-dim' : ''}`}>
+              <td className="p-2 text-center">
+                <span className={i < 3 ? 'text-base' : 'nums text-sm font-bold text-ink-faint'}>{i < 3 ? MEDAL[i] : i + 1}</span>
+              </td>
+              <td className="p-2">
+                <span className="flex items-center gap-2">
+                  <Avatar url={r.avatar_url} name={r.display_name} size={28} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold leading-none">{r.display_name}</span>
+                    <span className="nums text-xs text-ink-faint">{r.exacts}E · {r.partials}A</span>
+                  </span>
+                </span>
+              </td>
+              <td className="p-2 text-right scoreboard text-primary">{r.points}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   )
 }

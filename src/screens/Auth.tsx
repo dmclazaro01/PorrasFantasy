@@ -56,10 +56,10 @@ export default function Auth() {
 
   return (
     <div className="app-shell">
-      <div className="flex flex-1 items-center justify-center px-5 py-8">
-        <div className="card w-full max-w-sm overflow-hidden">
+      <div className="flex flex-1 items-center justify-center px-5 py-8 lg:px-8">
+        <div className="card w-full max-w-sm overflow-hidden lg:max-w-5xl lg:grid lg:grid-cols-2">
           {/* Cabecera con gradiente */}
-          <div className="grad-hero relative overflow-hidden px-6 pb-7 pt-7 text-white">
+          <div className="grad-hero relative overflow-hidden px-6 pb-7 pt-7 text-white lg:flex lg:flex-col lg:justify-center lg:px-10">
             <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-2xl" />
             <div className="relative">
               <span className="grad-primary nums grid h-12 w-12 place-items-center rounded-2xl text-base font-bold text-on-primary glow-primary">
@@ -75,7 +75,7 @@ export default function Auth() {
           </div>
 
           {/* Formulario */}
-          <div className="p-6">
+          <div className="p-6 lg:p-8">
             <div className="mb-5 flex gap-1 rounded-2xl bg-surface-2 p-1">
               {(['in', 'up'] as const).map((m) => (
                 <button

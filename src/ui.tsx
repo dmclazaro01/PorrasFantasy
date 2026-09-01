@@ -28,7 +28,7 @@ export function Button({
     <button
       {...rest}
       disabled={disabled || loading}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-bold transition-all duration-150 disabled:opacity-50 ${
+      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-bold transition-all duration-150 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2 ${
         VARIANTS[variant]
       } ${full ? 'w-full' : ''} ${className}`}
     >
@@ -61,7 +61,7 @@ export function Field({
       <span className="mb-1.5 block text-sm font-semibold text-ink-soft">{label}</span>
       <input
         {...rest}
-        className={`min-h-12 w-full rounded-2xl border border-line-strong bg-surface-2 px-4 text-[16px] text-ink placeholder:text-ink-faint focus:border-primary ${className}`}
+        className={`min-h-12 w-full rounded-2xl border border-line-strong bg-surface-2 px-4 text-[16px] text-ink placeholder:text-ink-faint focus:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${className}`}
       />
       {hint && <span className="mt-1.5 block text-xs text-ink-faint">{hint}</span>}
     </label>

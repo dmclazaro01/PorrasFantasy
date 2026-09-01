@@ -6,6 +6,7 @@ import { supabase } from './lib/supabase'
 import { getProfile, updateProfile, uploadAvatar } from './lib/api'
 import { Avatar, Button, Field, Spinner } from './ui'
 import { InstallButton } from './components/InstallBanner'
+import { DesktopSidebar } from './components/DesktopSidebar'
 import Auth from './screens/Auth'
 import Home from './screens/Home'
 import CreatePool from './screens/CreatePool'
@@ -43,16 +44,22 @@ function Root() {
 
   return (
     <div className="app-shell">
-      <Routes>
-        <Route element={<TabLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/perfil" element={<Profile session={session} />} />
-        </Route>
-        <Route path="/crear" element={<CreatePool />} />
-        <Route path="/unirse" element={<JoinPool />} />
-        <Route path="/sala/:id" element={<Pool />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <a href="#main-content" className="skip-link">
+        Saltar al contenido
+      </a>
+      <DesktopSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Routes>
+          <Route element={<TabLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/perfil" element={<Profile session={session} />} />
+          </Route>
+          <Route path="/crear" element={<CreatePool />} />
+          <Route path="/unirse" element={<JoinPool />} />
+          <Route path="/sala/:id" element={<Pool />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
     </div>
   )
 }
@@ -60,7 +67,7 @@ function Root() {
 function TabLayout() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-1 flex-col pb-20">
+      <div id="main-content" className="flex flex-1 flex-col pb-20 lg:pb-0">
         <Outlet />
       </div>
       <TabBar />
@@ -74,7 +81,7 @@ function TabBar() {
     { to: '/perfil', label: 'Perfil', icon: <path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0" /> },
   ]
   return (
-    <nav className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur">
+    <nav className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur lg:hidden">
       <div className="flex">
         {items.map((it) => (
           <NavLink
@@ -220,12 +227,12 @@ function Profile({ session }: { session: Session }) {
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <header className="safe-top px-5 pb-2 pt-5">
+    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1120px]">
+      <header className="safe-top px-5 pb-2 pt-5 lg:px-8 lg:pt-8">
         <h1 className="text-2xl font-bold">Perfil</h1>
       </header>
 
-      <div className="flex-1 space-y-5 px-5 py-4">
+      <div className="flex-1 space-y-5 px-5 py-4 lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:px-8">
         <div className="card flex items-center gap-4 p-5">
           <div className="relative">
             <Avatar url={avatarUrl} name={name || fallbackName} size={72} />
