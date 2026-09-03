@@ -72,6 +72,10 @@
   --color-ink-faint: #7c84a8;
   --color-line: #e3e7f1;
   --color-line-strong: #cfd5e6;
+  /* Verde de acento más oscuro para que el texto (puntos, pestañas) contraste
+     sobre superficies claras. Los botones/chips usan gradiente lima aparte. */
+  --color-primary: #4f8a00;
+  --color-win: #12924e;
   --color-primary-dim: #eafbcf;
   --color-magenta-dim: #ffe3f1;
   --color-win-dim: #dcf6e6;
