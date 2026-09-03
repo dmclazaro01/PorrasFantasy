@@ -225,81 +225,89 @@ function Profile({ session }: { session: Session }) {
   }
 
   return (
-    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1120px]">
+    <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1000px]">
       <header className="safe-top px-5 pb-2 pt-5 lg:px-8 lg:pt-8">
         <h1 className="text-2xl font-bold">Perfil</h1>
       </header>
 
-      <div className="flex-1 space-y-5 px-5 py-4 lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 lg:px-8">
-        <div className="card flex items-center gap-4 p-5">
-          <div className="relative">
-            <Avatar url={avatarUrl} name={name || fallbackName} size={72} />
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="grad-primary absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-surface text-on-primary shadow"
-              aria-label="Cambiar foto"
-            >
-              {uploading ? (
-                <Spinner small />
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
+      <div className="flex-1 px-5 py-4 lg:px-8 lg:py-6">
+        <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start lg:gap-6">
+          {/* Columna izquierda: identidad */}
+          <div className="card flex items-center gap-4 p-5 lg:sticky lg:top-6 lg:flex-col lg:gap-4 lg:p-7 lg:text-center">
+            <div className="relative shrink-0">
+              <Avatar url={avatarUrl} name={name || fallbackName} size={72} />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="grad-primary absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border-2 border-surface text-on-primary shadow"
+                aria-label="Cambiar foto"
+              >
+                {uploading ? (
+                  <Spinner small />
+                ) : (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                )}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+            </div>
+            <div className="min-w-0 lg:w-full">
+              <p className="truncate text-lg font-bold">{loaded ? name || fallbackName : '…'}</p>
+              <p className="truncate text-sm text-ink-faint">{email}</p>
+            </div>
+          </div>
+
+          {/* Columna derecha: ajustes y acciones */}
+          <div className="min-w-0 space-y-5">
+            <div className="card p-5">
+              <Field
+                label="Nombre para el ranking"
+                maxLength={24}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <div className="mt-3 sm:max-w-xs">
+                <Button full loading={savingName} onClick={saveName} variant={savedName ? 'secondary' : 'primary'}>
+                  {savedName ? '✓ Guardado' : 'Guardar nombre'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="card p-5">
+              <Field
+                label="Cambiar contraseña"
+                type="password"
+                autoComplete="new-password"
+                minLength={6}
+                placeholder="Nueva contraseña"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+              />
+              {passMsg && (
+                <p className={`mt-2 text-sm font-medium ${passMsg.startsWith('✓') ? 'text-primary' : 'text-loss'}`}>
+                  {passMsg}
+                </p>
               )}
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-bold">{loaded ? name || fallbackName : '…'}</p>
-            <p className="truncate text-sm text-ink-faint">{email}</p>
-          </div>
-        </div>
+              <div className="mt-3 sm:max-w-xs">
+                <Button full variant="secondary" loading={savingPass} onClick={savePassword} disabled={!newPass}>
+                  Actualizar contraseña
+                </Button>
+              </div>
+            </div>
 
-        <div className="card p-5">
-          <Field
-            label="Nombre para el ranking"
-            maxLength={24}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <div className="mt-3">
-            <Button full loading={savingName} onClick={saveName} variant={savedName ? 'secondary' : 'primary'}>
-              {savedName ? '✓ Guardado' : 'Guardar nombre'}
-            </Button>
+            {error && <p className="text-sm font-medium text-loss">{error}</p>}
+
+            <InstallButton />
+
+            <div className="sm:max-w-xs">
+              <Button variant="secondary" full onClick={() => supabase.auth.signOut()}>
+                Cerrar sesión
+              </Button>
+            </div>
           </div>
         </div>
-
-        <div className="card p-5">
-          <Field
-            label="Cambiar contraseña"
-            type="password"
-            autoComplete="new-password"
-            minLength={6}
-            placeholder="Nueva contraseña"
-            value={newPass}
-            onChange={(e) => setNewPass(e.target.value)}
-          />
-          {passMsg && (
-            <p className={`mt-2 text-sm font-medium ${passMsg.startsWith('✓') ? 'text-primary' : 'text-loss'}`}>
-              {passMsg}
-            </p>
-          )}
-          <div className="mt-3">
-            <Button full variant="secondary" loading={savingPass} onClick={savePassword} disabled={!newPass}>
-              Actualizar contraseña
-            </Button>
-          </div>
-        </div>
-
-        {error && <p className="text-sm font-medium text-loss">{error}</p>}
-
-        <InstallButton />
-
-        <Button variant="secondary" full onClick={() => supabase.auth.signOut()}>
-          Cerrar sesión
-        </Button>
       </div>
     </div>
   )
