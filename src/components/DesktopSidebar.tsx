@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { ThemeToggleButton } from './ThemeToggle'
 
 export function DesktopSidebar() {
   const base =
@@ -12,10 +13,7 @@ export function DesktopSidebar() {
         <span className="grad-primary nums grid h-10 w-10 place-items-center rounded-xl text-sm font-bold text-on-primary">
           LP
         </span>
-        <div>
-          <p className="text-sm font-bold leading-none">La Porra</p>
-          <p className="text-xs text-ink-faint">Stadium Night</p>
-        </div>
+        <p className="text-base font-bold leading-none">La Porra</p>
       </div>
       <nav aria-label="Principal" className="flex flex-1 flex-col gap-1">
         <NavLink to="/" end className={({ isActive }) => `${base} ${isActive ? active : idle}`}>
@@ -38,7 +36,10 @@ export function DesktopSidebar() {
           Unirme con código
         </NavLink>
       </nav>
-      <p className="px-2 text-[11px] text-ink-faint">© La Porra · privada entre amigos</p>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-3">
+        <p className="px-2 text-[11px] text-ink-faint">© La Porra</p>
+        <ThemeToggleButton />
+      </div>
     </aside>
   )
 }

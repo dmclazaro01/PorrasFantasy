@@ -51,11 +51,40 @@
 
 :root {
   color-scheme: dark;
+  --color-bg-edge: #05060e;
   --grad-primary: linear-gradient(135deg, #d4ff5c 0%, #86f03f 100%);
   --grad-hero: linear-gradient(150deg, #0f1430 0%, #241a54 42%, #ff3d9a 130%);
   --grad-gold: linear-gradient(135deg, #ffe37a 0%, #ffb524 100%);
   --grad-magenta: linear-gradient(135deg, #ff5db1 0%, #ff2d6f 100%);
   --grad-pitch: radial-gradient(120% 80% at 50% -20%, rgba(194, 255, 61, 0.14) 0%, transparent 60%);
+}
+
+/* Modo claro (opt-in; el oscuro es el predeterminado). */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #eef1f8;
+  --color-bg-2: #e6eaf4;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f5fb;
+  --color-surface-3: #e8ecf6;
+  --color-ink: #141830;
+  --color-ink-soft: #4b5379;
+  --color-ink-faint: #7c84a8;
+  --color-line: #e3e7f1;
+  --color-line-strong: #cfd5e6;
+  --color-primary-dim: #eafbcf;
+  --color-magenta-dim: #ffe3f1;
+  --color-win-dim: #dcf6e6;
+  --color-live-dim: #ffe0ea;
+  --color-gold-dim: #fff1cc;
+  --color-bg-edge: #dfe4f0;
+  --grad-pitch: radial-gradient(120% 80% at 50% -20%, rgba(134, 240, 63, 0.18) 0%, transparent 60%);
+}
+:root[data-theme='light'] .card {
+  box-shadow: 0 1px 2px rgb(20 24 48 / 0.04), 0 12px 28px -20px rgb(20 24 48 / 0.22);
+}
+:root[data-theme='light'] .ticket {
+  box-shadow: 0 1px 2px rgb(20 24 48 / 0.05), 0 16px 34px -22px rgb(20 24 48 / 0.26);
 }
 
 html,
@@ -67,7 +96,7 @@ html {
 }
 body {
   margin: 0;
-  background: #05060e;
+  background: var(--color-bg-edge);
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;

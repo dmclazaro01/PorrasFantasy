@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
+// Tema: aplica el claro antes del primer render si el usuario lo eligió (oscuro por defecto).
+try {
+  if (localStorage.getItem('porra-theme') === 'light') {
+    document.documentElement.dataset.theme = 'light'
+  }
+} catch {
+  /* ignore */
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

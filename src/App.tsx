@@ -7,6 +7,7 @@ import { getProfile, updateProfile, uploadAvatar } from './lib/api'
 import { Avatar, Button, Field, Spinner } from './ui'
 import { InstallButton } from './components/InstallBanner'
 import { DesktopSidebar } from './components/DesktopSidebar'
+import { ThemeToggle } from './components/ThemeToggle'
 import Auth from './screens/Auth'
 import Home from './screens/Home'
 import CreatePool from './screens/CreatePool'
@@ -298,6 +299,14 @@ function Profile({ session }: { session: Session }) {
             </div>
 
             {error && <p className="text-sm font-medium text-loss">{error}</p>}
+
+            <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
+              <div>
+                <p className="font-bold">Tema</p>
+                <p className="mt-0.5 text-sm text-ink-soft">Elige claro u oscuro.</p>
+              </div>
+              <ThemeToggle />
+            </div>
 
             <InstallButton />
 

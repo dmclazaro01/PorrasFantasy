@@ -190,6 +190,10 @@ function JornadaBar({
   selectedKey: string
   onSelect: (key: string) => void
 }) {
+  const selRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    selRef.current?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [selectedKey])
   if (segments.length === 0) return null
   const idx = segments.findIndex((s) => s.key === selectedKey)
   const seg = segments[idx]
@@ -198,6 +202,19 @@ function JornadaBar({
     seg && sameRound.length > 1
       ? ` · parte ${sameRound.findIndex((s) => s.key === seg.key) + 1}/${sameRound.length}`
       : ''
+
+  // Etiqueta corta para la tira de escritorio: "J6" (y "·2" si la jornada está partida).
+  const shortLabel = (s: Segment) => {
+    const n = (s.name.match(/\d+/) ?? ['?'])[0]
+    const parts = segments.filter((x) => x.roundId === s.roundId)
+    const pi = parts.length > 1 ? `·${parts.findIndex((x) => x.key === s.key) + 1}` : ''
+    return `J${n}${pi}`
+  }
+  const go = (delta: number) => {
+    const n = Math.min(Math.max(idx + delta, 0), segments.length - 1)
+    if (n !== idx) onSelect(segments[n].key)
+  }
+
   return (
     <>
       {/* Mobile */}
@@ -225,32 +242,58 @@ function JornadaBar({
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </button>
       </div>
-      {/* Desktop: tablist keyboard-navigable */}
-      <div role="tablist" aria-label="Jornadas" className="hidden lg:flex lg:flex-wrap lg:items-center lg:gap-2 lg:rounded-2xl lg:border lg:border-line lg:bg-surface lg:p-2">
-        {segments.map((s) => {
-          const sel = s.key === selectedKey
-          return (
-            <button
-              key={s.key}
-              role="tab"
-              aria-selected={sel}
-              onClick={() => onSelect(s.key)}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowRight') {
-                  const n = Math.min(idx + 1, segments.length - 1)
-                  onSelect(segments[n].key)
-                }
-                if (e.key === 'ArrowLeft') {
-                  const p = Math.max(idx - 1, 0)
-                  onSelect(segments[p].key)
-                }
-              }}
-              className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${sel ? 'bg-surface-2 text-primary' : 'text-ink-faint hover:bg-surface-2 hover:text-ink'}`}
-            >
-              {s.name}
-            </button>
-          )
-        })}
+      {/* Desktop: tira horizontal de una fila con scroll + flechas */}
+      <div className="hidden lg:flex lg:items-center lg:gap-2">
+        <button
+          onClick={() => go(-1)}
+          disabled={idx <= 0}
+          aria-label="Jornada anterior"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line text-ink-soft transition-colors hover:bg-surface-2 disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        </button>
+        <div
+          role="tablist"
+          aria-label="Jornadas"
+          className="no-scrollbar flex flex-1 gap-1.5 overflow-x-auto rounded-2xl border border-line bg-surface p-1.5"
+        >
+          {segments.map((s) => {
+            const sel = s.key === selectedKey
+            return (
+              <button
+                key={s.key}
+                ref={sel ? selRef : undefined}
+                role="tab"
+                aria-selected={sel}
+                aria-label={s.name}
+                onClick={() => onSelect(s.key)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight') {
+                    e.preventDefault()
+                    go(1)
+                  }
+                  if (e.key === 'ArrowLeft') {
+                    e.preventDefault()
+                    go(-1)
+                  }
+                }}
+                className={`nums shrink-0 rounded-xl px-3 py-1.5 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${
+                  sel ? 'grad-primary text-on-primary' : 'text-ink-soft hover:bg-surface-2 hover:text-ink'
+                }`}
+              >
+                {shortLabel(s)}
+              </button>
+            )
+          })}
+        </div>
+        <button
+          onClick={() => go(1)}
+          disabled={idx >= segments.length - 1}
+          aria-label="Jornada siguiente"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-line text-ink-soft transition-colors hover:bg-surface-2 disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </button>
       </div>
     </>
   )
