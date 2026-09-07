@@ -141,12 +141,13 @@ export default function Pool() {
         }
       />
 
-      {/* Desktop JornadaBar replica arriba (sticky tabs) */}
-      {section !== 'cartas' && (
-        <div className="hidden lg:block lg:px-6 lg:pt-4">
+      {/* Desktop: selector de sección + tira de jornadas (el PoolNav móvil está oculto en lg) */}
+      <div className="hidden lg:block lg:space-y-3 lg:px-6 lg:pt-4">
+        <SectionTabs section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
+        {section !== 'cartas' && (
           <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="flex-1 px-4 pb-32 pt-4 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:px-6 lg:pb-6">
         <div className="min-w-0">
@@ -296,6 +297,63 @@ function JornadaBar({
         </button>
       </div>
     </>
+  )
+}
+
+const SECTION_ITEMS: { key: Section; label: string; emoji: string }[] = [
+  { key: 'predicciones', label: 'Predicciones', emoji: '📝' },
+  { key: 'ranking', label: 'Ranking', emoji: '🏆' },
+  { key: 'cartas', label: 'Cartas', emoji: '🃏' },
+]
+
+/** Equivalente de escritorio del PoolNav móvil (oculto en lg): tabs con teclado. */
+function SectionTabs({
+  section,
+  setSection,
+  hasCard,
+}: {
+  section: Section
+  setSection: (s: Section) => void
+  hasCard: boolean
+}) {
+  const idx = SECTION_ITEMS.findIndex((it) => it.key === section)
+  const go = (delta: number) => {
+    const n = Math.min(Math.max(idx + delta, 0), SECTION_ITEMS.length - 1)
+    if (n !== idx) setSection(SECTION_ITEMS[n].key)
+  }
+  return (
+    <div role="tablist" aria-label="Secciones de la porra" className="flex gap-1 rounded-2xl bg-surface-2 p-1">
+      {SECTION_ITEMS.map((it) => {
+        const active = section === it.key
+        return (
+          <button
+            key={it.key}
+            role="tab"
+            aria-selected={active}
+            onClick={() => setSection(it.key)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                go(1)
+              }
+              if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                go(-1)
+              }
+            }}
+            className={`relative flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${
+              active ? 'bg-surface text-primary shadow-sm' : 'text-ink-faint hover:text-ink'
+            }`}
+          >
+            <span aria-hidden="true" className="text-base leading-none">{it.emoji}</span>
+            {it.label}
+            {it.key === 'cartas' && hasCard && (
+              <span className="h-2 w-2 rounded-full bg-primary" aria-label="Tienes carta disponible" />
+            )}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
