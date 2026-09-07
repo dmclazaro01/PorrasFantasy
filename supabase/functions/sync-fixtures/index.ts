@@ -134,7 +134,7 @@ Deno.serve(async (_req: Request) => {
     }
 
     // Resultado/estado: football-data NO es la fuente en vivo (la lleva
-    // sync-live/API-Football). Aquí solo RELLENAMOS finales que falten, sin
+    // sync-live/ESPN). Aquí solo RELLENAMOS finales que falten, sin
     // pisar nunca datos en directo/finales ya presentes: escribimos únicamente
     // cuando football-data marca FINISHED y en BD el partido sigue SCHEDULED
     // (y no está corregido a mano). Así el cron de calendario nunca revierte un
