@@ -15,7 +15,9 @@
 // BD, gratis). Escribe status/goals/ht/minute/live_status/scorers. Respeta
 // manual_override. live_status se normaliza al vocabulario de la UI.
 //
-// Despliegue:  supabase functions deploy sync-live   (no requiere secretos)
+// Despliegue:  supabase functions deploy sync-live
+// Secretos:    CRON_SECRET (el mismo que sync-fixtures; sin él responde 401).
+// ESPN no requiere key.
 // ============================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -65,8 +67,14 @@ interface EspnEvent {
   competitions: { competitors: EspnCompetitor[]; details?: EspnDetail[] }[]
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
   try {
+    // Puerta anti-abuso: la anon key es pública, así que NO basta como
+    // autenticación. Solo pg_cron (con el secreto en Vault) puede llamar.
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+      return new Response('Unauthorized', { status: 401 })
+    }
     const url = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const db = createClient(url, serviceKey, { db: { schema: 'porra' } })

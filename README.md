@@ -93,16 +93,17 @@ invitación (6 hex ≈ 16,7 M de combinaciones, y cada intento requiere cuenta) 
 cargos posibles**: el peor caso es degradación del servicio, no factura. Vectores:
 
 1. **Registro masivo de cuentas** — llena `auth.users` y gasta el cupo de emails/MAU.
-   Mitigación: confirmación por correo (activa) + captcha en Supabase Auth → Sign In.
+   Mitigación: confirmación por correo **siempre ON** + captcha (Turnstile) en
+   Supabase Auth. Ver checklist en `supabase/README.md`.
 2. **Flood a `/sb`** — cada petición consume CPU/egress del free tier (500 MB BD,
    5 GB egress). Sostenido, pausa el proyecto. Mitigación: Cloudflare delante con
    rate limiting si el repo se hace popular; Vercel *Attack Challenge Mode*.
-3. **Invocar `sync-fixtures`/`sync-live`** — aceptan la anon key (`verify_jwt`), así
-   que cualquiera puede llamarlas y **quemar tu cuota de football-data (10 req/min)**,
-   dejando el calendario parado. Es el vector más barato. Mitigación: exigir un
-   `CRON_SECRET` propio en la cabecera, guardado en Vault para pg_cron.
-4. **Fuerza bruta de códigos** — 16,7 M de códigos × cuenta requerida × rate limit:
-   impráctico.
+3. **Invocar `sync-fixtures`/`sync-live`** — blindadas con `CRON_SECRET` en cabecera
+   (la anon key sola devuelve 401), secreto en Vault para pg_cron. Sin esto,
+   cualquiera quemaría tu cuota de football-data (10 req/min).
+4. **Fuerza bruta de códigos** — los códigos (6 hex) solo los leen los miembros
+   (RLS) y `join_pool` admite 20 intentos / 10 min por usuario (migración `0023`):
+   barrer el espacio llevaría años. Requiere que la confirmación por correo siga ON.
 
 Si algún día metes tarjeta (Pro / pay-as-you-go), activa antes límites de gasto y
 alertas en Supabase y Vercel: ahí sí un flood podría facturar.

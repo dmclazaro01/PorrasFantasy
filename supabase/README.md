@@ -38,17 +38,24 @@ Fuentes de datos (ambas gratis):
 SUPABASE_ACCESS_TOKEN=sbp_xxx npx supabase functions deploy sync-fixtures --project-ref TU_REF
 SUPABASE_ACCESS_TOKEN=sbp_xxx npx supabase functions deploy sync-live --project-ref TU_REF
 
-# Secret (solo lo necesita sync-fixtures). SUPABASE_URL / SERVICE_ROLE_KEY
-# los inyecta Supabase solo; sync-live no requiere ningún secreto.
+# Secrets. SUPABASE_URL / SERVICE_ROLE_KEY los inyecta Supabase solo.
+# FOOTBALL_DATA_TOKEN solo lo necesita sync-fixtures.
+# CRON_SECRET lo necesitan AMBAS (puerta anti-abuso: la anon key es pública
+# y ya no basta para invocarlas). Genera uno y no lo compartas.
 SUPABASE_ACCESS_TOKEN=sbp_xxx npx supabase secrets set FOOTBALL_DATA_TOKEN=xxx --project-ref TU_REF
+SUPABASE_ACCESS_TOKEN=sbp_xxx npx supabase secrets set CRON_SECRET=$(openssl rand -hex 32) --project-ref TU_REF
 ```
 
-Programación con pg_cron (SQL Editor). Usa la **anon key** en la cabecera (las funciones
-tienen `verify_jwt` activo; la anon key es pública y basta para pasar la verificación):
+Programación con pg_cron (SQL Editor). El secreto vive en Vault (nunca en claro
+en el job) y viaja en la cabecera `x-cron-secret`:
 
 ```sql
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
+create extension if not exists supabase_vault with schema vault;
+
+-- Guarda el MISMO valor de CRON_SECRET una sola vez:
+select vault.create_secret('PEGA_AQUI_EL_CRON_SECRET', 'cron_secret');
 
 -- Calendario: 1-2 veces al día basta (football-data tiene cuota).
 select cron.schedule('sync-fixtures', '0 6,18 * * *', $job$
@@ -56,37 +63,44 @@ select cron.schedule('sync-fixtures', '0 6,18 * * *', $job$
     url := 'https://TU_REF.supabase.co/functions/v1/sync-fixtures',
     headers := jsonb_build_object(
       'Content-Type','application/json',
-      'Authorization','Bearer TU_ANON_KEY'
+      'Authorization','Bearer TU_ANON_KEY',
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret' limit 1)
     )
   );
 $job$);
 
--- En vivo: cada minuto (ESPN no tiene cuota; la función se auto-salта
+-- En vivo: cada minuto (ESPN no tiene cuota; la función se auto-salta
 -- si no hay ningún partido en ventana de juego).
 select cron.schedule('sync-live', '* * * * *', $job$
   select net.http_post(
     url := 'https://TU_REF.supabase.co/functions/v1/sync-live',
     headers := jsonb_build_object(
       'Content-Type','application/json',
-      'Authorization','Bearer TU_ANON_KEY'
+      'Authorization','Bearer TU_ANON_KEY',
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret' limit 1)
     )
   );
 $job$);
 ```
 
+> ⚠️ **Orden al aplicar**: 1) `secrets set CRON_SECRET`, 2) redesplegar ambas
+> funciones, 3) guardar el secreto en Vault, 4) recrear los cron con el SQL de
+> arriba (antes `unschedule` los antiguos). Si inviertes el orden, tus propios
+> crons recibirán 401 y se pararán el calendario y el directo.
+
 - Cambiar la frecuencia: edita el cron (`*/5 * * * *` = cada 5 min, etc.).
 - Ver ejecuciones: `select * from cron.job_run_details where jobid = (select jobid from cron.job where jobname='sync-live') order by start_time desc;`
 - Parar: `select cron.unschedule('sync-live');`
 
-> ⚠️ **Endurecer (recomendado)**: con `verify_jwt` + anon key, cualquiera que lea la
-> anon del JS puede invocar estas funciones y quemar tu cuota de football-data.
-> Protege ambas con un secreto propio (`CRON_SECRET` comprobado en la función y
-> guardado en Vault para pg_cron). Ver "Seguridad y abuso" en el README principal.
+## Auth (endurecer en el dashboard)
 
-## Auth
+1. **Confirm email: ON** (Authentication → Sign In). Sin esto, cualquiera crea
+   cuentas ilimitadas y el throttle anti-fuerza-bruta de `join_pool` no sirve.
+2. **Captcha: ON** (Authentication → Captcha, claves gratis de Cloudflare Turnstile).
+   Frena el registro masivo de bots que llena `auth.users` y gasta el cupo de emails.
+3. **Rate limits**: Supabase ya limita los endpoints de auth por defecto; no bajarlos.
 
-Authentication → Providers → *Email* activado (email + contraseña, con confirmación
-por correo). El perfil se crea de forma perezosa al crear/unirse a una porra
+El perfil se crea de forma perezosa al crear/unirse a una porra
 (`porra.ensure_profile`), sin trigger sobre `auth.users`.
 
 ## Modelo de datos (resumen)

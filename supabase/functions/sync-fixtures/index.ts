@@ -12,6 +12,8 @@
 // Despliegue:
 //   supabase functions deploy sync-fixtures
 //   supabase secrets set FOOTBALL_DATA_TOKEN=xxxxx
+//   supabase secrets set CRON_SECRET=$(openssl rand -hex 32)
+// (sin CRON_SECRET la función responde 401 a todo, incluido pg_cron)
 //
 // Programacion: pg_cron cada ~1-2 min en ventana de partido
 // (ver supabase/README.md). Una sola peticion a football-data por ejecucion.
@@ -49,8 +51,14 @@ function mapStatus(s: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' {
   return 'SCHEDULED'
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
   try {
+    // Puerta anti-abuso: la anon key es pública, así que NO basta como
+    // autenticación. Solo pg_cron (con el secreto en Vault) puede llamar.
+    const cronSecret = Deno.env.get('CRON_SECRET')
+    if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
+      return new Response('Unauthorized', { status: 401 })
+    }
     const token = Deno.env.get('FOOTBALL_DATA_TOKEN')
     const url = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
