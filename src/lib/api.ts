@@ -485,7 +485,7 @@ export interface Card {
   round_id: number
   owner_id: string
   type: CardType
-  status: 'GRANTED' | 'PLAYED'
+  status: 'GRANTED' | 'PLAYED' | 'EXPIRED'
   match_id: number | null
   target_user_id: string | null
   bet_points: number | null
