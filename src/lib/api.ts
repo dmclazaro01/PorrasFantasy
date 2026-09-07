@@ -475,7 +475,9 @@ export async function getRoundStandings(poolId: string, roundId: number): Promis
 
 // ---------------- Cartas ----------------
 
-export type CardType = 'BOMBA' | 'ROJA' | 'LESION' | 'ESPIA' | 'PRENSA' | 'DOBLE'
+export type CardType =
+  | 'BOMBA' | 'ROJA' | 'LESION' | 'ESPIA' | 'PRENSA' | 'DOBLE'
+  | 'VAR' | 'AUTOBUS' | 'CANCHERO' | 'DUPLA'
 
 export interface Card {
   id: number
@@ -487,6 +489,8 @@ export interface Card {
   match_id: number | null
   target_user_id: string | null
   bet_points: number | null
+  var_home: number | null
+  var_away: number | null
 }
 
 export interface Member {
@@ -503,15 +507,19 @@ export async function ensureMyCard(poolId: string, roundId: number): Promise<Car
 
 export async function playCard(input: {
   cardId: number
-  matchId: number
+  matchId: number | null
   targetUserId?: string | null
   bet?: number | null
+  varHome?: number | null
+  varAway?: number | null
 }): Promise<Card> {
   const { data, error } = await supabase.rpc('play_card', {
     p_card: input.cardId,
     p_match: input.matchId,
     p_target: input.targetUserId ?? null,
     p_bet: input.bet ?? null,
+    p_var_home: input.varHome ?? null,
+    p_var_away: input.varAway ?? null,
   })
   if (error) throw error
   return data as Card

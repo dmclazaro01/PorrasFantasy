@@ -689,6 +689,8 @@ function CardChip({ card, members }: { card: Card; members: Member[] }) {
   if (card.type === 'BOMBA') label = 'Mina'
   if (target) label = target
   if (card.type === 'DOBLE') label = `${card.bet_points} pts`
+  if (card.type === 'VAR' && card.var_home != null && card.var_away != null)
+    label = `${card.var_home}–${card.var_away}`
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
       <span>{meta.emoji}</span>

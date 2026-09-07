@@ -23,7 +23,20 @@ import { Avatar, Button, Field, Spinner, TeamCrest } from '../ui'
 
 export const CARD_META: Record<
   CardType,
-  { emoji: string; name: string; desc: string; reveal: string; needsRival: boolean; needsBet: boolean }
+  {
+    emoji: string
+    name: string
+    desc: string
+    reveal: string
+    needsRival: boolean
+    needsBet: boolean
+    /** false en cartas de jornada (sin partido): CANCHERO, DUPLA */
+    needsMatch?: boolean
+    /** picker de miembro no-rival (CANCHERO: cualquiera, DUPLA: rival) */
+    memberPick?: { label: string; includeSelf: boolean }
+    /** selector de gol a cambiar (VAR) */
+    varPick?: boolean
+  }
 > = {
   BOMBA: {
     emoji: '💣',
@@ -73,9 +86,46 @@ export const CARD_META: Record<
     needsRival: false,
     needsBet: true,
   },
+  VAR: {
+    emoji: '📺',
+    name: 'VAR',
+    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado. Vale para toda la sala menos para ti.',
+    reveal: 'Pública al instante. Solo un VAR por partido.',
+    needsRival: false,
+    needsBet: false,
+    varPick: true,
+  },
+  AUTOBUS: {
+    emoji: '🚌',
+    name: 'Autobús',
+    desc: 'Aparcas el bus en un partido: ninguna carta te toca ahí (ni el VAR) y te garantizas mínimo 1 punto.',
+    reveal: 'Oculta hasta el pitido inicial.',
+    needsRival: false,
+    needsBet: false,
+  },
+  CANCHERO: {
+    emoji: '🎺',
+    name: 'El canchero',
+    desc: 'Elige quién ganará la jornada (puedes ser tú). Si empata o lidera por puntos de partidos, te llevas 5 puntos. Solo antes de empezar la jornada.',
+    reveal: 'Pública al instante.',
+    needsRival: false,
+    needsBet: false,
+    needsMatch: false,
+    memberPick: { label: '¿Quién gana la jornada?', includeSelf: true },
+  },
+  DUPLA: {
+    emoji: '🤝',
+    name: 'La dupla',
+    desc: 'Eliges un rival y esa jornada vais a medias: se suman vuestros puntos y se reparten (7,5 y 7,5 si hacéis 5 y 10). Solo antes de empezar; un dúo por jugador.',
+    reveal: 'Pública al instante.',
+    needsRival: false,
+    needsBet: false,
+    needsMatch: false,
+    memberPick: { label: 'Elige rival', includeSelf: false },
+  },
 }
 
-const ORDER: CardType[] = ['BOMBA', 'ROJA', 'LESION', 'ESPIA', 'PRENSA', 'DOBLE']
+const ORDER: CardType[] = ['BOMBA', 'ROJA', 'LESION', 'ESPIA', 'PRENSA', 'DOBLE', 'VAR', 'AUTOBUS', 'CANCHERO', 'DUPLA']
 
 function fmtShort(iso: string) {
   return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
@@ -468,24 +518,49 @@ function PlayCardSheet({
   const [matchId, setMatchId] = useState<number | null>(null)
   const [targetId, setTargetId] = useState<string | null>(null)
   const [bet, setBet] = useState('')
+  const [varChoice, setVarChoice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const openMatches = matches.filter((m) => new Date(m.kickoff).getTime() > Date.now())
+  const finishedMatches = matches.filter((m) => m.status === 'FINISHED')
+  const matchList = meta.varPick ? finishedMatches : openMatches
   const rivals = members.filter((m) => m.user_id !== myUserId)
+  const candidates = meta.memberPick
+    ? meta.memberPick.includeSelf
+      ? members
+      : rivals
+    : rivals
+  const selMatch = matches.find((m) => m.id === matchId) ?? null
+
+  // Opciones del VAR: +1/-1 a un equipo sin bajar de 0.
+  const varOptions =
+    meta.varPick && selMatch?.home_goals != null && selMatch?.away_goals != null
+      ? ([
+          { key: 'h+1', h: selMatch.home_goals + 1, a: selMatch.away_goals, label: `+1 local (${selMatch.home_goals + 1}–${selMatch.away_goals})` },
+          { key: 'h-1', h: selMatch.home_goals - 1, a: selMatch.away_goals, label: `−1 local (${selMatch.home_goals - 1}–${selMatch.away_goals})` },
+          { key: 'a+1', h: selMatch.home_goals, a: selMatch.away_goals + 1, label: `+1 visita (${selMatch.home_goals}–${selMatch.away_goals + 1})` },
+          { key: 'a-1', h: selMatch.home_goals, a: selMatch.away_goals - 1, label: `−1 visita (${selMatch.home_goals}–${selMatch.away_goals - 1})` },
+        ] as const).filter((o) => o.h >= 0 && o.a >= 0)
+      : []
 
   async function play() {
-    if (!matchId) return setError('Elige un partido')
-    if (meta.needsRival && !targetId) return setError('Elige un rival')
+    if (meta.needsMatch !== false && !matchId) return setError('Elige un partido')
+    if ((meta.needsRival || meta.memberPick) && !targetId)
+      return setError(meta.memberPick ? 'Elige a quién' : 'Elige un rival')
     if (meta.needsBet && (!bet || Number(bet) <= 0)) return setError('Indica los puntos a apostar')
+    const varOpt = meta.varPick ? varOptions.find((o) => o.key === varChoice) ?? null : null
+    if (meta.varPick && !varOpt) return setError('Elige el gol a cambiar')
     setLoading(true)
     setError(null)
     try {
       await playCard({
         cardId: card.id,
-        matchId,
-        targetUserId: meta.needsRival ? targetId : null,
+        matchId: meta.needsMatch === false ? null : matchId,
+        targetUserId: meta.needsRival || meta.memberPick ? targetId : null,
         bet: meta.needsBet ? Number(bet) : null,
+        varHome: varOpt ? varOpt.h : null,
+        varAway: varOpt ? varOpt.a : null,
       })
       onPlayed()
     } catch (e) {
@@ -498,37 +573,77 @@ function PlayCardSheet({
     <Sheet title={`${meta.emoji} ${meta.name}`} onClose={onClose}>
       <p className="mt-1 text-sm text-ink-soft">{meta.desc}</p>
 
-      <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">Elige partido</p>
-      <div className="space-y-2">
-        {openMatches.map((m) => {
-          const sel = m.id === matchId
-          return (
-            <button
-              key={m.id}
-              onClick={() => setMatchId(m.id)}
-              className={`flex w-full items-center gap-2 rounded-xl border p-2.5 text-left ${
-                sel ? 'border-primary bg-primary-dim' : 'border-line-strong bg-surface-2'
-              }`}
-            >
-              <TeamCrest src={m.home_crest} short={m.home_short} size={24} />
-              <span className="flex-1 truncate text-sm font-semibold">
-                {m.home_team} <span className="text-ink-faint">–</span> {m.away_team}
-              </span>
-              <TeamCrest src={m.away_crest} short={m.away_short} size={24} />
-              <span className="nums shrink-0 text-[11px] text-ink-faint">{fmtShort(m.kickoff)}</span>
-            </button>
-          )
-        })}
-        {openMatches.length === 0 && (
-          <p className="text-sm text-ink-faint">No quedan partidos por empezar en esta jornada.</p>
-        )}
-      </div>
-
-      {meta.needsRival && (
+      {meta.needsMatch !== false && (
         <>
-          <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">Elige rival</p>
+          <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">
+            {meta.varPick ? 'Elige partido ya jugado' : 'Elige partido'}
+          </p>
+          <div className="space-y-2">
+            {matchList.map((m) => {
+              const sel = m.id === matchId
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setMatchId(m.id)
+                    setVarChoice(null)
+                  }}
+                  className={`flex w-full items-center gap-2 rounded-xl border p-2.5 text-left ${
+                    sel ? 'border-primary bg-primary-dim' : 'border-line-strong bg-surface-2'
+                  }`}
+                >
+                  <TeamCrest src={m.home_crest} short={m.home_short} size={24} />
+                  <span className="flex-1 truncate text-sm font-semibold">
+                    {m.home_team} <span className="text-ink-faint">–</span> {m.away_team}
+                  </span>
+                  {m.status === 'FINISHED' && m.home_goals != null && (
+                    <span className="nums shrink-0 text-sm font-bold">{m.home_goals}–{m.away_goals}</span>
+                  )}
+                  <TeamCrest src={m.away_crest} short={m.away_short} size={24} />
+                  <span className="nums shrink-0 text-[11px] text-ink-faint">{fmtShort(m.kickoff)}</span>
+                </button>
+              )
+            })}
+            {matchList.length === 0 && (
+              <p className="text-sm text-ink-faint">
+                {meta.varPick
+                  ? 'Aún no hay partidos jugados en esta jornada.'
+                  : 'No quedan partidos por empezar en esta jornada.'}
+              </p>
+            )}
+          </div>
+
+          {meta.varPick && selMatch && (
+            <>
+              <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">¿Qué gol cambias?</p>
+              <div className="grid grid-cols-2 gap-2">
+                {varOptions.map((o) => {
+                  const sel = o.key === varChoice
+                  return (
+                    <button
+                      key={o.key}
+                      onClick={() => setVarChoice(o.key)}
+                      className={`scoreboard rounded-xl border-2 px-3 py-2.5 text-center text-lg ${
+                        sel ? 'border-primary bg-primary-dim text-primary' : 'border-line-strong bg-surface-2'
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {(meta.needsRival || meta.memberPick) && (
+        <>
+          <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">
+            {meta.memberPick?.label ?? 'Elige rival'}
+          </p>
           <div className="flex flex-wrap gap-2">
-            {rivals.map((r) => {
+            {candidates.map((r) => {
               const sel = r.user_id === targetId
               return (
                 <button
@@ -539,10 +654,11 @@ function PlayCardSheet({
                   }`}
                 >
                   {r.display_name}
+                  {meta.memberPick?.includeSelf && r.user_id === myUserId ? ' (tú)' : ''}
                 </button>
               )
             })}
-            {rivals.length === 0 && <p className="text-sm text-ink-faint">Aún no hay rivales en la sala.</p>}
+            {candidates.length === 0 && <p className="text-sm text-ink-faint">Aún no hay rivales en la sala.</p>}
           </div>
         </>
       )}
