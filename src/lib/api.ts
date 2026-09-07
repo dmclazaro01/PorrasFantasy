@@ -27,6 +27,41 @@ export interface Standing {
   graded: number
   exacts: number
   partials: number
+  /** Carta de la jornada (solo vista de jornada; null si oculta o sin carta). */
+  card_type?: CardType | string | null
+  card_status?: string | null
+}
+
+export interface Finalissima {
+  pool_id: string
+  user_id: string
+  round_id: number
+  match_id: number
+}
+
+/** Designaciones visibles de FINALISSIMA (RLS: propia siempre, ajenas tras el pitido). */
+export async function getFinalissima(poolId: string, roundId: number): Promise<Finalissima[]> {
+  const { data, error } = await supabase
+    .from('finalissima')
+    .select('*')
+    .eq('pool_id', poolId)
+    .eq('round_id', roundId)
+  if (error) throw error
+  return (data ?? []) as Finalissima[]
+}
+
+/** Designa (o cambia a otro futuro) tu FINALISSIMA; matchId null la quita. */
+export async function setFinalissima(
+  poolId: string,
+  roundId: number,
+  matchId: number | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('set_finalissima', {
+    p_pool: poolId,
+    p_round: roundId,
+    p_match: matchId,
+  })
+  if (error) throw error
 }
 
 export async function listCompetitions(): Promise<Competition[]> {

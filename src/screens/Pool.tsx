@@ -6,6 +6,7 @@ import {
   currentSegmentKey,
   ensureMyCard,
   getBote,
+  getFinalissima,
   getMatches,
   getMyPredictions,
   getMembers,
@@ -17,8 +18,11 @@ import {
   listMatchMeta,
   listRounds,
   savePrediction,
+  setFinalissima,
   type BoteStanding,
   type Card,
+  type CardType,
+  type Finalissima,
   type Match,
   type MatchMeta,
   type Member,
@@ -422,6 +426,7 @@ function PrediccionesSection({
   const [isAdmin, setIsAdmin] = useState(false)
   const [cards, setCards] = useState<Card[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [fin, setFin] = useState<Finalissima[]>([])
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [detail, setDetail] = useState<{ match: Match; copy: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -441,11 +446,12 @@ function PrediccionesSection({
         return
       }
       const ms = await getMatches(round.id)
-      const [ps, vc, mem, prof] = await Promise.all([
+      const [ps, vc, mem, prof, ff] = await Promise.all([
         getMyPredictions(pool.id, uid, ms.map((m) => m.id)),
         getVisibleCards(pool.id, round.id),
         getMembers(pool.id),
         getProfile(uid).catch(() => null),
+        getFinalissima(pool.id, round.id).catch(() => [] as Finalissima[]),
       ])
       if (!alive) return
       setUserId(uid)
@@ -454,6 +460,7 @@ function PrediccionesSection({
       setPreds(ps)
       setCards(vc)
       setMembers(mem)
+      setFin(ff)
       const seed: Record<number, { h: string; a: string }> = {}
       for (const m of ms) {
         const p = ps[m.id]
@@ -481,6 +488,7 @@ function PrediccionesSection({
           setMatches(ms)
           if (userId) getMyPredictions(pool.id, userId, ms.map((m) => m.id)).then(setPreds).catch(() => {})
           getVisibleCards(pool.id, round.id).then(setCards).catch(() => {})
+          getFinalissima(pool.id, round.id).then(setFin).catch(() => {})
         })
         .catch(() => {})
     }, 30000)
@@ -534,12 +542,37 @@ function PrediccionesSection({
     if (userId) getMyPredictions(pool.id, userId, ms.map((m) => m.id)).then(setPreds).catch(() => {})
   }
 
+  async function toggleFinalissima(matchId: number) {
+    if (!round || !userId) return
+    const mine = fin.find((f) => f.user_id === userId)
+    setStatus('saving')
+    try {
+      await setFinalissima(pool.id, round.id, mine?.match_id === matchId ? null : matchId)
+      const rows = await getFinalissima(pool.id, round.id)
+      setFin(rows)
+      setStatus('saved')
+      setTimeout(() => setStatus((s) => (s === 'saved' ? 'idle' : s)), 1600)
+    } catch (e) {
+      setError((e as Error).message)
+      setStatus('error')
+    }
+  }
+
   const cardsByMatch = useMemo(() => {
     const map: Record<number, Card[]> = {}
     for (const c of cards) if (c.status === 'PLAYED' && c.match_id) (map[c.match_id] ||= []).push(c)
     return map
   }, [cards])
   const myEspia = cards.find((c) => c.type === 'ESPIA' && c.status === 'PLAYED' && c.owner_id === userId)
+
+  // FINALISSIMA visible por partido (RLS ya oculta las ajenas pre-pitido).
+  const finByMatch = useMemo(() => {
+    const map: Record<number, Finalissima[]> = {}
+    for (const f of fin) (map[f.match_id] ||= []).push(f)
+    return map
+  }, [fin])
+  const myFinMatchId = fin.find((f) => f.user_id === userId)?.match_id ?? null
+  const nameOf = (id: string) => members.find((m) => m.user_id === id)?.display_name ?? '—'
 
   // Solo los partidos del segmento (jornada partida): el resto de la jornada
   // aparece en su propio segmento, en su fecha.
@@ -605,6 +638,9 @@ function PrediccionesSection({
                 cardsForMatch={cardsByMatch[m.id] ?? []}
                 members={members}
                 espiaActive={espiaActive}
+                isFinalissima={myFinMatchId === m.id}
+                finalissimaNames={(finByMatch[m.id] ?? []).map((f) => nameOf(f.user_id))}
+                onToggleFinalissima={() => toggleFinalissima(m.id)}
                 onInput={(side, v) => setInput(m.id, side, v)}
                 onOpenDetail={(copy) => setDetail({ match: m, copy })}
               />
@@ -708,6 +744,9 @@ function MatchRow({
   cardsForMatch,
   members,
   espiaActive,
+  isFinalissima,
+  finalissimaNames,
+  onToggleFinalissima,
   onInput,
   onOpenDetail,
 }: {
@@ -719,6 +758,9 @@ function MatchRow({
   cardsForMatch: Card[]
   members: Member[]
   espiaActive: boolean
+  isFinalissima: boolean
+  finalissimaNames: string[]
+  onToggleFinalissima: () => void
   onInput: (side: 'h' | 'a', v: string) => void
   onOpenDetail: (copy: boolean) => void
 }) {
@@ -750,6 +792,36 @@ function MatchRow({
         </div>
         <TeamCol crest={match.away_crest} short={match.away_short} name={match.away_team} />
       </div>
+
+      {editable ? (
+        <div className="mt-2.5 flex justify-center">
+          <button
+            onClick={onToggleFinalissima}
+            aria-pressed={isFinalissima}
+            title="Designa este partido como FINALISSIMA: puntúa doble"
+            className={`scoreboard inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors ${
+              isFinalissima
+                ? 'grad-gold border-transparent text-on-primary'
+                : 'border-dashed border-line-strong text-ink-faint hover:border-primary hover:text-primary'
+            }`}
+          >
+            ×2 Finalissima
+          </button>
+        </div>
+      ) : (
+        finalissimaNames.length > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            {finalissimaNames.map((n) => (
+              <span
+                key={n}
+                className="scoreboard inline-flex items-center gap-1 rounded-full bg-gold-dim px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-gold"
+              >
+                ×2 {n}
+              </span>
+            ))}
+          </div>
+        )
+      )}
 
       {match.scorers && match.scorers.length > 0 && (
         <div className="mt-2.5 grid grid-cols-2 gap-3 text-[11px] leading-snug text-ink-soft">
@@ -926,6 +998,7 @@ function RankingSection({ pool, round }: { pool: PoolType; round: Round | null }
       ) : (
         <StandingsList
           rows={scope === 'general' ? general : jornada}
+          showCards={scope === 'jornada'}
           onSelect={(r) => setProfile({ userId: r.user_id, name: r.display_name, avatar: r.avatar_url })}
         />
       )}
@@ -1037,7 +1110,29 @@ function BoteList({ rows, onSelect }: { rows: BoteStanding[] | null; onSelect?: 
   )
 }
 
-function StandingsList({ rows, onSelect }: { rows: Standing[] | null; onSelect?: (r: Standing) => void }) {
+/** Chip con la carta de la jornada (null mientras está oculta o sin carta). */
+function RoundCardChip({ type, played }: { type: string | null | undefined; played: boolean }) {
+  if (!type) return null
+  const meta = CARD_META[type as CardType]
+  if (!meta) return null
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
+      <span>{meta.emoji}</span>
+      {meta.name}
+      {played && <span className="text-ink-faint">· jugada</span>}
+    </span>
+  )
+}
+
+function StandingsList({
+  rows,
+  showCards,
+  onSelect,
+}: {
+  rows: Standing[] | null
+  showCards?: boolean
+  onSelect?: (r: Standing) => void
+}) {
   if (rows === null) {
     return <div className="flex justify-center py-12 text-ink-faint"><Spinner /></div>
   }
@@ -1066,6 +1161,11 @@ function StandingsList({ rows, onSelect }: { rows: Standing[] | null; onSelect?:
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold">{r.display_name}</p>
                 <p className="nums text-xs text-ink-faint">{r.exacts} exactos · {r.partials} aciertos</p>
+                {showCards && (
+                  <p className="mt-1">
+                    <RoundCardChip type={r.card_type} played={r.card_status === 'PLAYED'} />
+                  </p>
+                )}
               </div>
               <span className="scoreboard text-2xl text-primary">{r.points}</span>
             </li>
@@ -1093,6 +1193,11 @@ function StandingsList({ rows, onSelect }: { rows: Standing[] | null; onSelect?:
                   <span className="min-w-0">
                     <span className="block truncate font-semibold leading-none">{r.display_name}</span>
                     <span className="nums text-xs text-ink-faint">{r.exacts}E · {r.partials}A</span>
+                    {showCards && r.card_type && (
+                      <span className="mt-1 block">
+                        <RoundCardChip type={r.card_type} played={r.card_status === 'PLAYED'} />
+                      </span>
+                    )}
                   </span>
                 </span>
               </td>
