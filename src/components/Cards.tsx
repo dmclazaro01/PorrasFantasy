@@ -89,7 +89,7 @@ export const CARD_META: Record<
   VAR: {
     emoji: '📺',
     name: 'VAR',
-    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado: para ti o para un rival. Sobre su FINALISSIMA no entra.',
+    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado solo para ti o para un rival (el resto ni se entera). Tu propio VAR manda sobre el ajeno. No entra sobre su FINALISSIMA ni contra el Autobús.',
     reveal: 'Pública al instante.',
     needsRival: false,
     needsBet: false,
