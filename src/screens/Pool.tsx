@@ -721,12 +721,15 @@ function ScoreBox({
 function CardChip({ card, members }: { card: Card; members: Member[] }) {
   const meta = CARD_META[card.type]
   const target = members.find((m) => m.user_id === card.target_user_id)?.display_name
+  const owner = members.find((m) => m.user_id === card.owner_id)?.display_name
   let label: string = meta.name
   if (card.type === 'BOMBA') label = 'Mina'
   if (target) label = target
   if (card.type === 'DOBLE') label = `${card.bet_points} pts`
-  if (card.type === 'VAR' && card.var_home != null && card.var_away != null)
-    label = `${card.var_home}–${card.var_away}`
+  if (card.type === 'VAR' && card.var_home != null && card.var_away != null) {
+    const score = `${card.var_home}–${card.var_away}`
+    label = target && target !== owner ? `${score} a ${target}` : `${score} propio`
+  }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
       <span>{meta.emoji}</span>

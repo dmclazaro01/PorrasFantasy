@@ -89,11 +89,12 @@ export const CARD_META: Record<
   VAR: {
     emoji: '📺',
     name: 'VAR',
-    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado. Vale para toda la sala menos para ti.',
-    reveal: 'Pública al instante. Solo un VAR por partido.',
+    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado: para ti o para un rival. Sobre su FINALISSIMA no entra.',
+    reveal: 'Pública al instante.',
     needsRival: false,
     needsBet: false,
     varPick: true,
+    memberPick: { label: '¿A quién afecta?', includeSelf: true },
   },
   AUTOBUS: {
     emoji: '🚌',
