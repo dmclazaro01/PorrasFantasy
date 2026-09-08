@@ -132,7 +132,7 @@ function fmtShort(iso: string) {
   return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-function Sheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+export function Sheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {

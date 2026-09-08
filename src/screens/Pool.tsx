@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   buildSegments,
@@ -34,11 +34,13 @@ import {
 } from '../lib/api'
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
 import { CARD_META, CartasSection, MatchDetailSheet, ProfileSheet } from '../components/Cards'
+import { PoolAdminSheet } from '../components/PoolAdmin'
 
 type Section = 'predicciones' | 'ranking' | 'cartas'
 
 export default function Pool() {
   const { id = '' } = useParams()
+  const nav = useNavigate()
   const [pool, setPool] = useState<PoolType | null>(null)
   const [section, setSection] = useState<Section>('predicciones')
   const [rounds, setRounds] = useState<Round[]>([])
@@ -49,12 +51,24 @@ export default function Pool() {
   const [loadedRounds, setLoadedRounds] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [me, setMe] = useState<{ id: string; isAdmin: boolean } | null>(null)
 
   useEffect(() => {
     getPool(id)
       .then((p) => (p ? setPool(p) : setNotFound(true)))
       .catch(() => setNotFound(true))
   }, [id])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const uid = data.user?.id
+      if (!uid) return
+      getProfile(uid)
+        .then((p) => setMe({ id: uid, isAdmin: !!p?.is_admin }))
+        .catch(() => setMe({ id: uid, isAdmin: false }))
+    })
+  }, [])
 
   useEffect(() => {
     if (!pool) return
@@ -132,18 +146,40 @@ export default function Pool() {
         back="/"
         gradient
         action={
-          <button
-            onClick={share}
-            className="nums flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold text-white hover:bg-white/25"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-              <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-            </svg>
-            {copied ? '¡copiado!' : pool.invite_code}
-          </button>
+          <span className="flex items-center gap-1.5">
+            {me && (me.isAdmin || pool.owner_id === me.id) && (
+              <button
+                onClick={() => setAdminOpen(true)}
+                aria-label="Administrar porra"
+                className="grid h-9 w-9 place-items-center rounded-xl bg-white/15 text-white hover:bg-white/25"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h.01a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h.01a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v.01a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={share}
+              className="nums flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-bold text-white hover:bg-white/25"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+              </svg>
+              {copied ? '¡copiado!' : pool.invite_code}
+            </button>
+          </span>
         }
       />
+      {adminOpen && (
+        <PoolAdminSheet
+          pool={pool}
+          onChanged={() => getPool(id).then((p) => p && setPool(p)).catch(() => {})}
+          onDeleted={() => nav('/', { replace: true })}
+          onClose={() => setAdminOpen(false)}
+        />
+      )}
 
       {/* Desktop: selector de sección + tira de jornadas (el PoolNav móvil está oculto en lg) */}
       <div className="hidden lg:block lg:space-y-3 lg:px-6 lg:pt-4">

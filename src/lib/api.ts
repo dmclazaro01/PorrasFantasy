@@ -615,3 +615,37 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   const { data } = supabase.storage.from('avatars').getPublicUrl(path)
   return data.publicUrl
 }
+
+// ---------------- Administración de la porra (dueño o admin app) ----------------
+
+export async function updatePool(
+  poolId: string,
+  patch: { name?: string; points_1x2?: number; points_exact?: number },
+): Promise<void> {
+  const { error } = await supabase.from('pools').update(patch).eq('id', poolId)
+  if (error) throw error
+}
+
+export async function regenPoolCode(poolId: string): Promise<string> {
+  for (let i = 0; i < 3; i++) {
+    const { data, error } = await supabase.rpc('admin_regen_code', { p_pool: poolId })
+    if (!error) return data as string
+    if (!String((error as Error).message).includes('duplicate')) throw error
+  }
+  throw new Error('No se pudo generar el código, inténtalo de nuevo')
+}
+
+export async function rescorePool(poolId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_rescore_pool', { p_pool: poolId })
+  if (error) throw error
+}
+
+export async function removePoolMember(poolId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_remove_member', { p_pool: poolId, p_user: userId })
+  if (error) throw error
+}
+
+export async function deletePool(poolId: string): Promise<void> {
+  const { error } = await supabase.from('pools').delete().eq('id', poolId)
+  if (error) throw error
+}
