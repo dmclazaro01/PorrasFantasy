@@ -34,6 +34,7 @@ import {
 } from '../lib/api'
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
 import { CARD_META, CartasSection, MatchDetailSheet, ProfileSheet } from '../components/Cards'
+import { CardIcon } from '../components/CardIcon'
 import { PoolAdminSheet } from '../components/PoolAdmin'
 import { useTheme } from '../hooks/useTheme'
 
@@ -779,7 +780,7 @@ function CardChip({ card, members }: { card: Card; members: Member[] }) {
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
-      <span>{meta.emoji}</span>
+      <CardIcon type={card.type} size={13} />
       {label}
     </span>
   )
@@ -902,7 +903,7 @@ function MatchRow({
               onClick={() => onOpenDetail(true)}
               className="inline-flex items-center gap-1 rounded-full bg-primary-dim px-2.5 py-0.5 text-[11px] font-bold text-primary"
             >
-              🕵️ Ver y copiar
+              <CardIcon type="ESPIA" size={13} /> Ver y copiar
             </button>
           )}
         </div>
@@ -1167,7 +1168,7 @@ function RoundCardChip({ type, played }: { type: string | null | undefined; play
   if (!meta) return null
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 text-[11px] font-semibold text-ink-soft">
-      <span>{meta.emoji}</span>
+      <CardIcon type={type as CardType} size={13} />
       {meta.name}
       {played && <span className="text-ink-faint">· jugada</span>}
     </span>

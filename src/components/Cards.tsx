@@ -20,11 +20,11 @@ import {
 } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { Avatar, Button, Field, Spinner, TeamCrest } from '../ui'
+import { CardIcon } from './CardIcon'
 
 export const CARD_META: Record<
   CardType,
   {
-    emoji: string
     name: string
     desc: string
     reveal: string
@@ -39,7 +39,6 @@ export const CARD_META: Record<
   }
 > = {
   BOMBA: {
-    emoji: '💣',
     name: 'Bomba',
     desc: 'Minas un partido con tu marcador. Quien ponga tu MISMO marcador exacto no puntúa ahí. Tú eres inmune.',
     reveal: 'Oculta hasta el pitido inicial.',
@@ -47,7 +46,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   ROJA: {
-    emoji: '🟥',
     name: 'Roja',
     desc: 'Expulsas a un rival de un partido: no puntúa ahí.',
     reveal: 'Se destapa al pitido inicial.',
@@ -55,7 +53,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   LESION: {
-    emoji: '🤕',
     name: 'Lesión',
     desc: 'Lesionas a un rival: se lleva la mitad de puntos en ese partido.',
     reveal: 'La víctima se entera al empezar el partido.',
@@ -63,7 +60,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   ESPIA: {
-    emoji: '🕵️',
     name: 'Espía',
     desc: 'Desde 1 hora antes del partido ves las predicciones de todos y puedes copiar la que quieras.',
     reveal: 'Solo para ti.',
@@ -71,7 +67,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   PRENSA: {
-    emoji: '📣',
     name: 'Rueda de prensa',
     desc: 'La predicción de un rival en ese partido se hace pública para toda la sala (aunque la cambie).',
     reveal: 'Pública al instante.',
@@ -79,7 +74,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   DOBLE: {
-    emoji: '🎲',
     name: 'Doble o nada',
     desc: 'Apuestas puntos a clavar el marcador exacto. Si lo clavas, ganas lo apostado. Si no, pierdes la mitad.',
     reveal: 'Se resuelve al acabar el partido.',
@@ -87,7 +81,6 @@ export const CARD_META: Record<
     needsBet: true,
   },
   VAR: {
-    emoji: '📺',
     name: 'VAR',
     desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado solo para ti o para un rival (el resto ni se entera). Tu propio VAR manda sobre el ajeno. No entra sobre su FINALISSIMA ni contra el Autobús.',
     reveal: 'Pública al instante.',
@@ -97,7 +90,6 @@ export const CARD_META: Record<
     memberPick: { label: '¿A quién afecta?', includeSelf: true },
   },
   AUTOBUS: {
-    emoji: '🚌',
     name: 'Autobús',
     desc: 'Aparcas el bus en un partido: ninguna carta te toca ahí (ni el VAR) y te garantizas mínimo 1 punto.',
     reveal: 'Oculta hasta el pitido inicial.',
@@ -105,7 +97,6 @@ export const CARD_META: Record<
     needsBet: false,
   },
   CANCHERO: {
-    emoji: '🎺',
     name: 'El canchero',
     desc: 'Elige quién ganará la jornada (puedes ser tú). Si empata o lidera por puntos de partidos, te llevas 5 puntos. Solo antes de empezar la jornada.',
     reveal: 'Pública al instante.',
@@ -115,7 +106,6 @@ export const CARD_META: Record<
     memberPick: { label: '¿Quién gana la jornada?', includeSelf: true },
   },
   DUPLA: {
-    emoji: '🤝',
     name: 'La dupla',
     desc: 'Eliges un rival y esa jornada vais a medias: se suman vuestros puntos y se reparten (7,5 y 7,5 si hacéis 5 y 10). Solo antes de empezar; un dúo por jugador.',
     reveal: 'Pública al instante.',
@@ -132,7 +122,7 @@ function fmtShort(iso: string) {
   return new Date(iso).toLocaleString('es-ES', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
-export function Sheet({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+export function Sheet({ title, children, onClose }: { title: React.ReactNode; children: React.ReactNode; onClose: () => void }) {
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
@@ -400,8 +390,8 @@ export function CartasSection({
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Tu carta · {round?.name}</p>
         {myCard ? (
           <div className="mt-2 flex items-center gap-3">
-            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-surface text-3xl">
-              {CARD_META[myCard.type].emoji}
+            <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border-2 border-line-strong bg-surface-2 text-ink">
+              <CardIcon type={myCard.type} size={32} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold">{CARD_META[myCard.type].name}</p>
@@ -442,7 +432,9 @@ export function CartasSection({
                 mine ? 'border-primary bg-surface' : 'border-line bg-surface/60 opacity-80 hover:opacity-100'
               }`}
             >
-              <span className="text-3xl">{meta.emoji}</span>
+              <span className="grid h-14 w-14 place-items-center rounded-xl border-2 border-line-strong bg-surface-2 text-ink">
+                <CardIcon type={type} size={30} />
+              </span>
               <span className="text-sm font-bold">{meta.name}</span>
               <span className="line-clamp-2 text-[11px] leading-tight text-ink-faint">{meta.desc}</span>
               {mine && (
@@ -481,7 +473,15 @@ export function CartasSection({
 function ExplainSheet({ type, onClose }: { type: CardType; onClose: () => void }) {
   const meta = CARD_META[type]
   return (
-    <Sheet title={`${meta.emoji} ${meta.name}`} onClose={onClose}>
+    <Sheet
+      title={
+        <span className="flex items-center gap-2">
+          <CardIcon type={type} size={24} />
+          {meta.name}
+        </span>
+      }
+      onClose={onClose}
+    >
       <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">{meta.desc}</p>
       <div className="mt-4 rounded-xl border border-line bg-surface-2 p-3 text-sm text-ink-soft">
         <span className="font-semibold text-ink">Cuándo se ve: </span>
@@ -571,7 +571,15 @@ function PlayCardSheet({
   }
 
   return (
-    <Sheet title={`${meta.emoji} ${meta.name}`} onClose={onClose}>
+    <Sheet
+      title={
+        <span className="flex items-center gap-2">
+          <CardIcon type={card.type} size={24} />
+          {meta.name}
+        </span>
+      }
+      onClose={onClose}
+    >
       <p className="mt-1 text-sm text-ink-soft">{meta.desc}</p>
 
       {meta.needsMatch !== false && (
