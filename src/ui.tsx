@@ -73,11 +73,14 @@ export function ScreenHeader({
   title,
   back,
   action,
+  actionSecondary,
   gradient,
 }: {
   title: string
   back?: boolean | string
   action?: ReactNode
+  /** Segunda acción: en taberna baja a una fila propia en móvil. */
+  actionSecondary?: ReactNode
   gradient?: boolean
 }) {
   const nav = useNavigate()
@@ -85,20 +88,32 @@ export function ScreenHeader({
   if (theme === 'taberna') {
     return (
       <header className="safe-top sticky top-0 z-20 border-b-[3px] border-double border-line-strong bg-bg">
-        <div className="relative flex h-14 items-center justify-center px-3">
-          {back && (
-            <button
-              onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))}
-              className="absolute left-3 grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-surface-2"
-              aria-label="Volver"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
+        <div className="px-3 pb-2 pt-2.5">
+          <div className="relative flex h-10 items-center justify-center">
+            {back && (
+              <button
+                onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))}
+                className="absolute left-0 grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-surface-2"
+                aria-label="Volver"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+            )}
+            <h1 className="truncate px-12 text-center text-lg font-bold uppercase tracking-wide">{title}</h1>
+            {action ? (
+              <div className="absolute right-0 flex items-center gap-1.5">
+                {action}
+                {actionSecondary && <span className="hidden items-center gap-1.5 sm:flex">{actionSecondary}</span>}
+              </div>
+            ) : (
+              <div className="w-10" />
+            )}
+          </div>
+          {actionSecondary && (
+            <div className="mt-1.5 flex justify-center sm:hidden">{actionSecondary}</div>
           )}
-          <h1 className="truncate px-14 text-center text-lg font-bold uppercase tracking-wide">{title}</h1>
-          {action && <div className="absolute right-3">{action}</div>}
         </div>
       </header>
     )
@@ -125,6 +140,7 @@ export function ScreenHeader({
         )}
         <h1 className="flex-1 truncate text-lg font-bold">{title}</h1>
         {action}
+        {actionSecondary}
       </div>
     </header>
   )
