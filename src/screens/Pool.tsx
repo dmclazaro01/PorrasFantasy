@@ -195,7 +195,7 @@ export default function Pool() {
       <div
         className={
           taberna
-            ? 'mx-auto w-full max-w-[880px] flex-1 px-4 pb-32 pt-4 lg:px-6 lg:pb-6'
+            ? 'mx-auto w-full max-w-[880px] flex-1 px-4 pb-32 pt-4 lg:max-w-[1100px] lg:px-6 lg:pb-6'
             : 'flex-1 px-4 pb-32 pt-4 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:px-6 lg:pb-6'
         }
       >

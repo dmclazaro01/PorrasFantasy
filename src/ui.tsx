@@ -201,14 +201,14 @@ export function Avatar({
         alt={name}
         style={px}
         onError={() => setFailed(true)}
-        className="shrink-0 rounded-full object-cover"
+        className="avatar shrink-0 rounded-full object-cover"
       />
     )
   }
   return (
     <span
       style={{ ...px, fontSize: size * 0.36 }}
-      className="grad-primary nums grid shrink-0 place-items-center rounded-full font-bold text-on-primary"
+      className="avatar grad-primary nums grid shrink-0 place-items-center rounded-full font-bold text-on-primary"
     >
       {initials}
     </span>

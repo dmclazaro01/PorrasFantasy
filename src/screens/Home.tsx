@@ -89,19 +89,24 @@ export default function Home() {
               {error && <p className="px-6 pb-5 text-center text-xs text-loss">{error}</p>}
             </div>
           ) : (
-            <ul>
+            <ul className="lg:grid lg:grid-cols-2 lg:gap-4">
               {pools.map((p, i) => (
-                <li key={p.id} className={i === 0 ? 'border-t-2 border-dashed border-line-strong' : ''}>
+                <li
+                  key={p.id}
+                  className={`border-t-2 border-dashed border-line-strong lg:border-t-0 ${
+                    i === 0 ? 'lg:col-span-2' : ''
+                  } taberna-tile`}
+                >
                   <Link
                     to={`/sala/${p.id}`}
-                    className="flex items-baseline gap-3 border-b-2 border-dashed border-line-strong py-3.5"
+                    className="flex items-center gap-3 border-b-2 border-dashed border-line-strong py-3.5 lg:border-b-0 lg:py-1"
                   >
-                    <span className="nums grid h-11 w-11 shrink-0 translate-y-1 place-items-center rounded-lg border-2 border-line-strong bg-surface-2 text-base font-bold">
+                    <span className="nums grid h-11 w-11 shrink-0 translate-y-1 place-items-center rounded-lg border-2 border-line-strong bg-surface-2 text-base font-bold lg:h-14 lg:w-14 lg:text-xl">
                       {p.name.slice(0, 2).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-lg font-bold leading-tight">{p.name}</span>
-                      <span className="nums block text-xs font-semibold text-ink-faint">
+                      <span className={`block truncate font-bold leading-tight ${i === 0 ? 'text-lg lg:text-3xl' : 'text-lg'}`}>{p.name}</span>
+                      <span className="nums block text-xs font-semibold text-ink-faint lg:text-sm">
                         {p.invite_code} · {p.points_1x2}/{p.points_exact} pts
                       </span>
                     </span>

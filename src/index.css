@@ -151,13 +151,32 @@
   box-shadow: 4px 4px 0 var(--color-line-strong);
 }
 :root[data-theme='taberna'] .rounded-2xl {
-  border-radius: 10px;
-}
-:root[data-theme='taberna'] .rounded-xl {
   border-radius: 8px;
 }
+:root[data-theme='taberna'] .rounded-xl {
+  border-radius: 6px;
+}
 :root[data-theme='taberna'] .rounded-t-3xl {
-  border-radius: 12px 12px 0 0;
+  border-radius: 10px 10px 0 0;
+}
+/* Píldoras y chips cuadrados; avatares y puntos de directo siguen redondos. */
+:root[data-theme='taberna'] .rounded-full {
+  border-radius: 8px;
+}
+:root[data-theme='taberna'] .avatar,
+:root[data-theme='taberna'] span.h-1\.5.rounded-full {
+  border-radius: 999px;
+}
+/* Acciones de cabecera: en papel no vale el blanco sobre blanco. */
+:root[data-theme='taberna'] header .bg-white\/15 {
+  background-color: var(--color-surface-2);
+  border: 2px solid var(--color-line-strong);
+}
+:root[data-theme='taberna'] header .bg-white\/15:hover {
+  background-color: var(--color-surface-3);
+}
+:root[data-theme='taberna'] header .text-white {
+  color: var(--color-ink);
 }
 :root[data-theme='taberna'] button.grad-primary,
 :root[data-theme='taberna'] .grad-primary {
@@ -171,6 +190,17 @@
   :root[data-theme='taberna'] .app-shell {
     display: flex;
     max-width: 1100px;
+  }
+  :root[data-theme='taberna'] header h1 {
+    font-size: 1.6rem;
+  }
+  /* Mosaico de la fonda: solo escritorio. */
+  :root[data-theme='taberna'] .taberna-tile {
+    border: 2.5px solid var(--color-line-strong);
+    border-radius: 10px;
+    background: var(--color-surface);
+    box-shadow: 5px 5px 0 rgb(34 20 16 / 0.9);
+    padding: 20px;
   }
 }
 
