@@ -166,6 +166,13 @@
 :root[data-theme='taberna'] .app-bottombar {
   border-top: 2.5px solid var(--color-line-strong);
 }
+/* En taberna el PC no usa rail lateral: columna única de acta centrada. */
+@media (min-width: 1024px) {
+  :root[data-theme='taberna'] .app-shell {
+    display: flex;
+    max-width: 1100px;
+  }
+}
 
 html,
 body {

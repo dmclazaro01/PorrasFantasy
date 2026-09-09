@@ -25,6 +25,7 @@ export default function App() {
 
 function Root() {
   const { session, loading } = useSession()
+  const { theme } = useTheme()
   const [recovery, setRecovery] = useState(false)
 
   useEffect(() => {
@@ -49,7 +50,7 @@ function Root() {
       <a href="#main-content" className="skip-link">
         Saltar al contenido
       </a>
-      <DesktopSidebar />
+      {theme !== 'taberna' && <DesktopSidebar />}
       <div className="flex min-w-0 flex-1 flex-col">
         <Routes>
           <Route element={<TabLayout />}>
@@ -80,32 +81,27 @@ function TabLayout() {
   )
 }
 
-/** Barra superior de taberna (N1a): cabecera + 2 destinos. Solo móvil; en PC manda el sidebar. */
+/** Cabecera de taberna: en móvil barra N1a; en PC masthead centrado de periódico. */
 function TabBarTop() {
+  const link = ({ isActive }: { isActive: boolean }) =>
+    `whitespace-nowrap px-3 py-3.5 text-sm font-bold lg:py-1 ${isActive ? 'text-primary' : 'text-ink-soft'}`
   return (
     <nav
       aria-label="Principal"
-      className="safe-top sticky top-0 z-30 border-b-[3px] border-double border-line-strong bg-bg lg:hidden"
+      className="safe-top sticky top-0 z-30 border-b-[3px] border-double border-line-strong bg-bg"
     >
-      <div className="flex items-center px-4">
-        <span className="mr-auto py-3 font-display text-base font-bold tracking-wide">LA PORRA</span>
-        <NavLink
-          to="/"
-          end
-          className={({ isActive }) =>
-            `whitespace-nowrap px-3 py-3.5 text-sm font-bold ${isActive ? 'text-primary' : 'text-ink-soft'}`
-          }
-        >
-          Porras
-        </NavLink>
-        <NavLink
-          to="/perfil"
-          className={({ isActive }) =>
-            `whitespace-nowrap px-3 py-3.5 text-sm font-bold ${isActive ? 'text-primary' : 'text-ink-soft'}`
-          }
-        >
-          Perfil
-        </NavLink>
+      <div className="flex items-center px-4 lg:flex-col lg:py-3">
+        <span className="mr-auto py-3 font-display text-base font-bold tracking-wide lg:mr-0 lg:py-0 lg:text-3xl">
+          LA PORRA
+        </span>
+        <div className="flex lg:mt-1 lg:gap-8">
+          <NavLink to="/" end className={link}>
+            Porras
+          </NavLink>
+          <NavLink to="/perfil" className={link}>
+            Perfil
+          </NavLink>
+        </div>
       </div>
     </nav>
   )

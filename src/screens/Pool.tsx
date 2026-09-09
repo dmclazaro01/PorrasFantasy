@@ -54,6 +54,8 @@ export default function Pool() {
   const [copied, setCopied] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [me, setMe] = useState<{ id: string; isAdmin: boolean } | null>(null)
+  const { theme } = useTheme()
+  const taberna = theme === 'taberna'
 
   useEffect(() => {
     getPool(id)
@@ -190,7 +192,13 @@ export default function Pool() {
         )}
       </div>
 
-      <div className="flex-1 px-4 pb-32 pt-4 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:px-6 lg:pb-6">
+      <div
+        className={
+          taberna
+            ? 'mx-auto w-full max-w-[880px] flex-1 px-4 pb-32 pt-4 lg:px-6 lg:pb-6'
+            : 'flex-1 px-4 pb-32 pt-4 lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 lg:px-6 lg:pb-6'
+        }
+      >
         <div className="min-w-0">
           {section === 'predicciones' &&
             (loadedRounds ? (
@@ -203,7 +211,7 @@ export default function Pool() {
             <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
           )}
         </div>
-        {section === 'predicciones' && (
+        {section === 'predicciones' && !taberna && (
           <aside className="hidden min-w-0 lg:block lg:sticky lg:top-4 lg:h-fit lg:space-y-4">
             <div className="card p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-faint">Clasificación rápida</p>

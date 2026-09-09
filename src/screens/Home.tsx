@@ -57,7 +57,7 @@ export default function Home() {
 
         <InstallBanner />
 
-        <div className="grid grid-cols-2 gap-2.5 px-5 pt-3 lg:px-8">
+        <div className="grid grid-cols-2 gap-2.5 px-5 pt-3 lg:mx-auto lg:w-full lg:max-w-[880px] lg:px-8">
           <Link to="/crear" className="block">
             <Button full>+ Crear porra</Button>
           </Link>
@@ -68,7 +68,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="flex-1 px-5 pb-4 pt-2 lg:px-8">
+        <div className="flex-1 px-5 pb-4 pt-2 lg:mx-auto lg:w-full lg:max-w-[880px] lg:px-8">
           {pools === null ? (
             <div className="flex justify-center py-16 text-ink-faint">
               <Spinner />
