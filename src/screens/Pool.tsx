@@ -476,6 +476,7 @@ function PrediccionesSection({
   const [detail, setDetail] = useState<{ match: Match; copy: boolean } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { theme } = useTheme()
 
   const inputsRef = useRef(inputs)
   const timers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
@@ -668,7 +669,7 @@ function PrediccionesSection({
           </div>
         </div>
 
-        <div className="divide-y divide-line xl:grid xl:grid-cols-2 xl:gap-3 xl:divide-y-0 xl:p-3">
+        <div className={`divide-y divide-line ${theme === 'taberna' ? '' : 'xl:grid xl:grid-cols-2 xl:gap-3 xl:divide-y-0 xl:p-3'}`}>
           {visibleMatches.map((m) => {
             const espiaActive =
               !!myEspia && myEspia.match_id === m.id && Date.now() >= new Date(m.kickoff).getTime() - 3600_000
