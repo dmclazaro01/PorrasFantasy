@@ -1,16 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#141a3a"/>
-      <stop offset="1" stop-color="#0a0d1e"/>
-    </linearGradient>
-    <linearGradient id="lp" x1="120" y1="140" x2="392" y2="320" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#d4ff5c"/>
-      <stop offset="1" stop-color="#86f03f"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <text x="256" y="300" font-family="Arial, Helvetica, sans-serif" font-size="230"
-        font-weight="700" fill="url(#lp)" text-anchor="middle">LP</text>
-  <circle cx="256" cy="392" r="22" fill="#ff3d9a"/>
+  <rect width="512" height="512" rx="112" fill="#f2e7cb"/>
+  <rect x="28" y="28" width="456" height="456" rx="92" fill="none" stroke="#221410" stroke-width="22"/>
+  <text x="256" y="318" font-family="'Archivo Black', 'Arial Black', Arial, sans-serif" font-size="218"
+        font-weight="900" fill="#bf3b26" text-anchor="middle" letter-spacing="4">LP</text>
+  <rect x="156" y="352" width="200" height="20" fill="#221410"/>
 </svg>
