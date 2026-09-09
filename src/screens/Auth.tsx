@@ -55,7 +55,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-dvh bg-bg bg-[var(--grad-pitch)] bg-no-repeat flex items-center justify-center px-5 py-8 lg:px-8">
+    <main className="min-h-dvh bg-bg bg-[var(--grad-pitch)] bg-no-repeat flex items-center justify-center px-5 py-8 lg:px-8">
       <div className="card w-full max-w-sm overflow-hidden lg:max-w-5xl lg:grid lg:grid-cols-2">
           {/* Cabecera con gradiente */}
           <div className="grad-hero relative overflow-hidden px-6 pb-7 pt-7 text-white lg:flex lg:flex-col lg:justify-center lg:px-10">
@@ -135,14 +135,14 @@ export default function Auth() {
               </Button>
 
               {mode === 'in' && (
-                <button type="button" onClick={forgot} className="w-full text-center text-xs text-ink-faint">
+                <button type="button" onClick={forgot} className="w-full py-2 text-center text-xs text-ink-faint">
                   ¿Olvidaste la contraseña?
                 </button>
               )}
             </form>
           </div>
         </div>
-    </div>
+    </main>
   )
 }
 

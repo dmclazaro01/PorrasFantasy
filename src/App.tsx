@@ -283,7 +283,7 @@ function Profile({ session }: { session: Session }) {
                   </svg>
                 )}
               </button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+              <input ref={fileRef} type="file" accept="image/*" aria-label="Subir foto de perfil" className="hidden" onChange={onFile} />
             </div>
             <div className="min-w-0 lg:w-full">
               <p className="truncate text-lg font-bold">{loaded ? name || fallbackName : '…'}</p>

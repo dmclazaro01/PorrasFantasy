@@ -18,7 +18,7 @@
   --color-surface-3: #262d57;
   --color-ink: #eef1ff;
   --color-ink-soft: #9aa2ca;
-  --color-ink-faint: #646c99;
+  --color-ink-faint: #7a82b5;
   --color-line: #232a52;
   --color-line-strong: #343c6c;
 
@@ -103,7 +103,7 @@
   --color-surface-3: #e4d0a8;
   --color-ink: #221410;
   --color-ink-soft: #5c4c3c;
-  --color-ink-faint: #8a7660;
+  --color-ink-faint: #6e5f4c;
   --color-line: #d8c49c;
   --color-line-strong: #221410;
   --color-primary: #bf3b26;
@@ -326,11 +326,6 @@ h4 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-@media (min-width: 1024px) {
-  :root {
-    --color-ink-faint: #7a82b5;
-  }
 }
 .safe-top {
   padding-top: max(env(safe-area-inset-top), 0px);
