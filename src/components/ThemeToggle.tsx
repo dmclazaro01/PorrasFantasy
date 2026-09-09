@@ -29,9 +29,9 @@ function BeerIcon() {
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const opts: { key: Theme; label: string; icon: React.ReactNode }[] = [
+    { key: 'taberna', label: 'Taberna', icon: <BeerIcon /> },
     { key: 'dark', label: 'Oscuro', icon: <MoonIcon /> },
     { key: 'light', label: 'Claro', icon: <SunIcon /> },
-    { key: 'taberna', label: 'Taberna', icon: <BeerIcon /> },
   ]
   return (
     <div role="group" aria-label="Tema" className="inline-flex rounded-xl bg-surface-2 p-1">

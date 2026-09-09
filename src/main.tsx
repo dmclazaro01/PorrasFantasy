@@ -3,11 +3,13 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 
-// Tema: aplica el guardado antes del primer render (oscuro por defecto).
+// Tema: aplica el guardado antes del primer render (taberna por defecto).
 try {
   const t = localStorage.getItem('porra-theme')
-  if (t === 'light' || t === 'taberna') {
+  if (t === 'light' || t === 'dark') {
     document.documentElement.dataset.theme = t
+  } else {
+    document.documentElement.dataset.theme = 'taberna'
   }
 } catch {
   /* ignore */

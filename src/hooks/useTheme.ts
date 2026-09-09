@@ -6,12 +6,12 @@ export const THEME_KEY = 'porra-theme'
 const THEMES: Theme[] = ['dark', 'light', 'taberna']
 
 function currentTheme(): Theme {
-  if (typeof document === 'undefined') return 'dark'
+  if (typeof document === 'undefined') return 'taberna'
   const t = document.documentElement.dataset.theme
-  return t === 'light' || t === 'taberna' ? t : 'dark'
+  return t === 'light' || t === 'dark' ? t : 'taberna'
 }
 
-/** Tema oscuro por defecto; claro y taberna son opt-in y se recuerdan en localStorage. */
+/** Taberna por defecto; oscuro y claro son opt-out y se recuerdan en localStorage. */
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(currentTheme)
 
