@@ -35,6 +35,7 @@ import {
 import { Avatar, EmptyState, ScreenHeader, Spinner, TeamCrest } from '../ui'
 import { CARD_META, CartasSection, MatchDetailSheet, ProfileSheet } from '../components/Cards'
 import { PoolAdminSheet } from '../components/PoolAdmin'
+import { useTheme } from '../hooks/useTheme'
 
 type Section = 'predicciones' | 'ranking' | 'cartas'
 
@@ -711,10 +712,11 @@ function PrediccionesSection({
 }
 
 function TeamCol({ crest, short, name }: { crest: string | null; short: string | null; name: string }) {
+  const { theme } = useTheme()
   return (
     <div className="flex min-w-0 flex-col items-center gap-1.5">
       <TeamCrest src={crest} short={short} size={44} />
-      <span className="line-clamp-2 w-full text-center text-xs font-semibold leading-tight text-ink">{name}</span>
+      <span className={`line-clamp-2 w-full text-center text-xs font-semibold leading-tight text-ink ${theme === 'taberna' ? 'uppercase tracking-wide' : ''}`}>{name}</span>
     </div>
   )
 }

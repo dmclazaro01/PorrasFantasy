@@ -6,6 +6,7 @@ import { supabase } from './lib/supabase'
 import { getProfile, updateProfile, uploadAvatar } from './lib/api'
 import { Avatar, Button, Field, Spinner } from './ui'
 import { InstallButton } from './components/InstallBanner'
+import { useTheme } from './hooks/useTheme'
 import { DesktopSidebar } from './components/DesktopSidebar'
 import { ThemeToggle } from './components/ThemeToggle'
 import Auth from './screens/Auth'
@@ -66,13 +67,47 @@ function Root() {
 }
 
 function TabLayout() {
+  const { theme } = useTheme()
+  const taberna = theme === 'taberna'
   return (
     <div className="flex flex-1 flex-col">
-      <div id="main-content" className="flex flex-1 flex-col pb-20 lg:pb-0">
+      {taberna && <TabBarTop />}
+      <div id="main-content" className={`flex flex-1 flex-col ${taberna ? 'pb-8' : 'pb-20'} lg:pb-0`}>
         <Outlet />
       </div>
-      <TabBar />
+      {!taberna && <TabBar />}
     </div>
+  )
+}
+
+/** Barra superior de taberna (N1a): cabecera + 2 destinos. Solo móvil; en PC manda el sidebar. */
+function TabBarTop() {
+  return (
+    <nav
+      aria-label="Principal"
+      className="safe-top sticky top-0 z-30 border-b-[3px] border-double border-line-strong bg-bg lg:hidden"
+    >
+      <div className="flex items-center px-4">
+        <span className="mr-auto py-3 font-display text-base font-bold tracking-wide">LA PORRA</span>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `whitespace-nowrap px-3 py-3.5 text-sm font-bold ${isActive ? 'text-primary' : 'text-ink-soft'}`
+          }
+        >
+          Porras
+        </NavLink>
+        <NavLink
+          to="/perfil"
+          className={({ isActive }) =>
+            `whitespace-nowrap px-3 py-3.5 text-sm font-bold ${isActive ? 'text-primary' : 'text-ink-soft'}`
+          }
+        >
+          Perfil
+        </NavLink>
+      </div>
+    </nav>
   )
 }
 

@@ -1,5 +1,6 @@
 import { useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTheme } from './hooks/useTheme'
 
 type Variant = 'primary' | 'secondary' | 'magenta' | 'ghost' | 'danger'
 
@@ -80,6 +81,28 @@ export function ScreenHeader({
   gradient?: boolean
 }) {
   const nav = useNavigate()
+  const { theme } = useTheme()
+  if (theme === 'taberna') {
+    return (
+      <header className="safe-top sticky top-0 z-20 border-b-[3px] border-double border-line-strong bg-bg">
+        <div className="relative flex h-14 items-center justify-center px-3">
+          {back && (
+            <button
+              onClick={() => (typeof back === 'string' ? nav(back) : nav(-1))}
+              className="absolute left-3 grid h-10 w-10 place-items-center rounded-xl text-ink-soft hover:bg-surface-2"
+              aria-label="Volver"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
+          <h1 className="truncate px-14 text-center text-lg font-bold uppercase tracking-wide">{title}</h1>
+          {action && <div className="absolute right-3">{action}</div>}
+        </div>
+      </header>
+    )
+  }
   return (
     <header
       className={`safe-top sticky top-0 z-20 ${
