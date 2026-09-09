@@ -91,6 +91,82 @@
   box-shadow: 0 1px 2px rgb(20 24 48 / 0.05), 0 16px 34px -22px rgb(20 24 48 / 0.26);
 }
 
+/* Modo taberna (opt-in): cartel impreso. Papel cálido, tinta, rojo cartel,
+ * titulares de palo pesado, cantos rectos, bordes gordos, cero neones. */
+:root[data-theme='taberna'] {
+  color-scheme: light;
+  --font-display: 'Archivo Black', 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --color-bg: #f2e7cb;
+  --color-bg-2: #e9d9b8;
+  --color-surface: #f7efdc;
+  --color-surface-2: #efe0c2;
+  --color-surface-3: #e4d0a8;
+  --color-ink: #221410;
+  --color-ink-soft: #5c4c3c;
+  --color-ink-faint: #8a7660;
+  --color-line: #d8c49c;
+  --color-line-strong: #221410;
+  --color-primary: #bf3b26;
+  --color-primary-2: #a32e1d;
+  --color-on-primary: #fbf3df;
+  --color-primary-dim: #f3d9cd;
+  --color-magenta: #bf3b26;
+  --color-magenta-dim: #f3d9cd;
+  --color-cyan: #1d5fa8;
+  --color-win: #1d7a3d;
+  --color-win-dim: #dcebd8;
+  --color-live: #c22f4a;
+  --color-live-dim: #f6d9de;
+  --color-gold: #8a5f0c;
+  --color-gold-dim: #f0e2bd;
+  --color-loss: #b3261e;
+  --color-silver: #6b5a48;
+  --color-bronze: #8a5a2b;
+  --color-bg-edge: #dccfae;
+  --grad-primary: linear-gradient(180deg, #2b1d13 0%, #2b1d13 100%);
+  --grad-hero: linear-gradient(150deg, #221410 0%, #57200f 90%);
+  --grad-gold: linear-gradient(135deg, #e8bd55 0%, #c8921f 100%);
+  --grad-magenta: linear-gradient(135deg, #d6543a 0%, #a32e1d 100%);
+  --grad-pitch: radial-gradient(120% 80% at 50% -20%, rgba(191, 59, 38, 0.12) 0%, transparent 60%);
+}
+:root[data-theme='taberna'] h1,
+:root[data-theme='taberna'] h2,
+:root[data-theme='taberna'] h3,
+:root[data-theme='taberna'] h4 {
+  font-weight: 400;
+  letter-spacing: 0.005em;
+}
+/* Sin cantos redondos de IA: tarjetas y botones rectos, borde de tinta. */
+:root[data-theme='taberna'] .card {
+  border: 2.5px solid var(--color-line-strong);
+  border-radius: 10px;
+  box-shadow: 5px 5px 0 rgb(34 20 16 / 0.9);
+}
+:root[data-theme='taberna'] .ticket {
+  border: 2.5px solid var(--color-line-strong);
+  border-radius: 12px;
+  box-shadow: 5px 5px 0 rgb(34 20 16 / 0.9);
+}
+:root[data-theme='taberna'] .glow-primary {
+  box-shadow: 4px 4px 0 var(--color-line-strong);
+}
+:root[data-theme='taberna'] .rounded-2xl {
+  border-radius: 10px;
+}
+:root[data-theme='taberna'] .rounded-xl {
+  border-radius: 8px;
+}
+:root[data-theme='taberna'] .rounded-t-3xl {
+  border-radius: 12px 12px 0 0;
+}
+:root[data-theme='taberna'] button.grad-primary,
+:root[data-theme='taberna'] .grad-primary {
+  border: 2px solid var(--color-line-strong);
+}
+:root[data-theme='taberna'] .app-bottombar {
+  border-top: 2.5px solid var(--color-line-strong);
+}
+
 html,
 body {
   overflow-x: clip;

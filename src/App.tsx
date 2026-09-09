@@ -303,7 +303,7 @@ function Profile({ session }: { session: Session }) {
             <div className="card flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
                 <p className="font-bold">Tema</p>
-                <p className="mt-0.5 text-sm text-ink-soft">Elige claro u oscuro.</p>
+                <p className="mt-0.5 text-sm text-ink-soft">Oscuro, claro o taberna.</p>
               </div>
               <ThemeToggle />
             </div>

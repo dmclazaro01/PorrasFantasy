@@ -15,13 +15,23 @@ function MoonIcon() {
     </svg>
   )
 }
+function BeerIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3h11v13a4 4 0 01-4 4H10a4 4 0 01-4-4V3z" />
+      <path d="M17 6h1.5a2.5 2.5 0 010 5H17" />
+      <path d="M6 3c0 2 1.5 2 1.5 4S9 9 9 9M11 3c0 2 1.5 2 1.5 4S14 9 14 9" />
+    </svg>
+  )
+}
 
-/** Control segmentado Oscuro / Claro (para la pantalla de Perfil). */
+/** Control segmentado Oscuro / Claro / Taberna (para la pantalla de Perfil). */
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme()
   const opts: { key: Theme; label: string; icon: React.ReactNode }[] = [
     { key: 'dark', label: 'Oscuro', icon: <MoonIcon /> },
     { key: 'light', label: 'Claro', icon: <SunIcon /> },
+    { key: 'taberna', label: 'Taberna', icon: <BeerIcon /> },
   ]
   return (
     <div role="group" aria-label="Tema" className="inline-flex rounded-xl bg-surface-2 p-1">
@@ -45,10 +55,11 @@ export function ThemeToggle() {
 /** Botón compacto de alternar tema (para la barra lateral de escritorio). */
 export function ThemeToggleButton({ className = '' }: { className?: string }) {
   const { theme, toggle } = useTheme()
+  const next = theme === 'dark' ? 'claro' : theme === 'light' ? 'taberna' : 'oscuro'
   return (
     <button
       onClick={toggle}
-      aria-label={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}
+      aria-label={`Cambiar a modo ${next}`}
       className={`grid h-9 w-9 place-items-center rounded-lg text-ink-soft transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${className}`}
     >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
