@@ -107,7 +107,7 @@ export const CARD_META: Record<
   },
   DUPLA: {
     name: 'La dupla',
-    desc: 'Eliges un rival y esa jornada vais a medias: se suman vuestros puntos y se reparten (7,5 y 7,5 si hacéis 5 y 10). Solo antes de empezar; un dúo por jugador.',
+    desc: 'Eliges un rival y esa jornada vais a medias: se suman vuestros puntos y se reparten (7,5 y 7,5 si hacéis 5 y 10). Vale mientras se hayan jugado 5 partidos o menos; un dúo por jugador.',
     reveal: 'Pública al instante.',
     needsRival: false,
     needsBet: false,
