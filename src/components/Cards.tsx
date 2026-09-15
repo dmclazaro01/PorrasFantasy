@@ -98,7 +98,7 @@ export const CARD_META: Record<
   },
   CANCHERO: {
     name: 'El canchero',
-    desc: 'Elige quién ganará la jornada (puedes ser tú). Si empata o lidera por puntos de partidos, te llevas 5 puntos. Solo antes de empezar la jornada.',
+    desc: 'Elige quién ganará la jornada (puedes ser tú). Si empata o lidera por puntos de partidos, te llevas 5 puntos. Vale hasta el comienzo del segundo partido.',
     reveal: 'Pública al instante.',
     needsRival: false,
     needsBet: false,
