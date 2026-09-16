@@ -543,7 +543,19 @@ function PrediccionesSection({
   }, [round?.id, userId, pool.id])
 
   function isEditable(m: Match) {
-    return m.status === 'SCHEDULED' && new Date(m.kickoff).getTime() > Date.now()
+    return m.status === 'SCHEDULED' && new Date(m.kickoff).getTime() > Date.now() && !isFrozen(m)
+  }
+
+  // Congelado por rueda de prensa: 30 min o menos para el pitido.
+  function isFrozen(m: Match) {
+    if (new Date(m.kickoff).getTime() - Date.now() > 30 * 60_000) return false
+    return cards.some(
+      (c) =>
+        c.type === 'PRENSA' &&
+        c.status === 'PLAYED' &&
+        c.match_id === m.id &&
+        c.target_user_id === userId,
+    )
   }
 
   async function autosave(matchId: number) {
@@ -690,6 +702,7 @@ function PrediccionesSection({
                 onToggleFinalissima={() => toggleFinalissima(m.id)}
                 onInput={(side, v) => setInput(m.id, side, v)}
                 onOpenDetail={(copy) => setDetail({ match: m, copy })}
+                frozen={isFrozen(m)}
               />
             )
           })}
@@ -705,6 +718,7 @@ function PrediccionesSection({
           members={members}
           exactPts={pool.points_exact}
           isAdmin={isAdmin}
+          viewerId={userId}
           onChanged={reloadMatches}
           onClose={() => setDetail(null)}
           onCopy={
@@ -800,6 +814,7 @@ function MatchRow({
   onToggleFinalissima,
   onInput,
   onOpenDetail,
+  frozen,
 }: {
   match: Match
   pred?: Prediction
@@ -814,6 +829,7 @@ function MatchRow({
   onToggleFinalissima: () => void
   onInput: (side: 'h' | 'a', v: string) => void
   onOpenDetail: (copy: boolean) => void
+  frozen: boolean
 }) {
   const started = new Date(match.kickoff).getTime() <= Date.now()
   const live = match.status === 'LIVE'
@@ -906,6 +922,21 @@ function MatchRow({
               <CardIcon type="ESPIA" size={13} /> Ver y copiar
             </button>
           )}
+          {editable &&
+            cardsForMatch.some((c) => c.type === 'PRENSA' && c.status === 'PLAYED') && (
+              <button
+                onClick={() => onOpenDetail(false)}
+                className="inline-flex items-center gap-1 rounded-full bg-gold-dim px-2.5 py-0.5 text-[11px] font-bold text-gold"
+              >
+                📣 Ver revelada
+              </button>
+            )}
+        </div>
+      )}
+
+      {frozen && !started && (
+        <div className="mt-2.5 rounded-xl border border-gold/30 bg-gold-dim px-3 py-2 text-xs font-bold text-ink-soft">
+          🔒 Pronóstico fijado por rueda de prensa: ya no se puede cambiar
         </div>
       )}
 

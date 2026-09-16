@@ -708,6 +708,7 @@ export function MatchDetailSheet({
   onClose,
   onCopy,
   onChanged,
+  viewerId,
 }: {
   poolId: string
   match: Match
@@ -717,6 +718,7 @@ export function MatchDetailSheet({
   onClose: () => void
   onCopy?: (home: number, away: number) => void
   onChanged?: () => void
+  viewerId?: string
 }) {
   const [rows, setRows] = useState<MatchPrediction[] | null>(null)
   const [cur, setCur] = useState<Match>(match)
@@ -901,6 +903,11 @@ export function MatchDetailSheet({
         </div>
       )}
 
+      {!started && !finished && !onCopy && rows !== null && rows.some((r) => r.user_id !== viewerId) && (
+        <div className="mt-4 rounded-xl border border-gold/30 bg-gold-dim px-3 py-2 text-xs font-bold text-ink-soft">
+          📣 Revelada por rueda de prensa antes del pitido
+        </div>
+      )}
       <p className="mb-2 mt-5 text-sm font-semibold text-ink-soft">
         {onCopy ? 'Predicciones (toca para copiar)' : started ? 'Porras de la sala' : 'Predicciones'}
       </p>
