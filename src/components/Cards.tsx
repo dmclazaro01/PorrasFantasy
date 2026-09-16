@@ -68,7 +68,7 @@ export const CARD_META: Record<
   },
   PRENSA: {
     name: 'Rueda de prensa',
-    desc: 'La predicción de un rival en ese partido se hace pública para toda la sala (aunque la cambie).',
+    desc: 'La predicción de un rival en ese partido se hace pública para toda la sala al instante. Además, en los últimos 30 minutos ya no podrá cambiarla: queda fijada.',
     reveal: 'Pública al instante.',
     needsRival: true,
     needsBet: false,
