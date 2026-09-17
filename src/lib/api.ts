@@ -571,6 +571,22 @@ export async function getVisibleCards(poolId: string, roundId: number): Promise<
   return (data ?? []) as Card[]
 }
 
+/**
+ * Cartas visibles sobre unos partidos concretos (propias + destapadas).
+ * Necesario para el VAR cross-round: una carta jugada desde otra jornada
+ * también debe mostrar su chip en el partido afectado.
+ */
+export async function getVisibleCardsForMatches(poolId: string, matchIds: number[]): Promise<Card[]> {
+  if (matchIds.length === 0) return []
+  const { data, error } = await supabase
+    .from('cards')
+    .select('*')
+    .eq('pool_id', poolId)
+    .in('match_id', matchIds)
+  if (error) throw error
+  return (data ?? []) as Card[]
+}
+
 export interface MatchPrediction {
   user_id: string
   pred_home: number

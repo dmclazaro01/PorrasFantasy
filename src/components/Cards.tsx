@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   adminSetMatch,
   ensureMyCard,
@@ -82,7 +82,7 @@ export const CARD_META: Record<
   },
   VAR: {
     name: 'VAR',
-    desc: 'En un partido ya jugado de esta jornada, cambias UN gol del resultado solo para ti o para un rival (el resto ni se entera). Tu propio VAR manda sobre el ajeno. No entra sobre su FINALISSIMA ni contra el Autobús.',
+    desc: 'En un partido ya jugado cambias UN gol del resultado solo para ti o para un rival (el resto ni se entera). Vale hasta 24 h después del último finalizado de su jornada, aunque sea de la anterior. Tu propio VAR manda sobre el ajeno. No entra sobre su FINALISSIMA ni contra el Autobús.',
     reveal: 'Pública al instante.',
     needsRival: false,
     needsBet: false,
@@ -334,15 +334,18 @@ function HistoryCard({ r, exactPts }: { r: HistoryEntry; exactPts: number }) {
 export function CartasSection({
   pool,
   round,
+  prevRoundId,
   myCard,
   onCardChanged,
 }: {
   pool: Pool
   round: Round | null
+  prevRoundId?: number | null
   myCard: Card | null
   onCardChanged: () => void
 }) {
   const [matches, setMatches] = useState<Match[]>([])
+  const [prevMatches, setPrevMatches] = useState<Match[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [myPoints, setMyPoints] = useState(0)
   const [userId, setUserId] = useState('')
@@ -355,14 +358,17 @@ export function CartasSection({
     async function load() {
       const { data } = await supabase.auth.getUser()
       const uid = data.user?.id ?? ''
-      const [ms, mem, st] = await Promise.all([
+      const [ms, prev, mem, st] = await Promise.all([
         round ? getMatches(round.id) : Promise.resolve([]),
+        // El VAR puede apuntar a finalizados de la jornada anterior en plazo.
+        prevRoundId ? getMatches(prevRoundId).catch(() => [] as Match[]) : Promise.resolve([] as Match[]),
         getMembers(pool.id),
         getStandings(pool.id),
       ])
       if (!alive) return
       setUserId(uid)
       setMatches(ms)
+      setPrevMatches(prev.filter((m) => !ms.some((x) => x.id === m.id)))
       setMembers(mem)
       setMyPoints(st.find((s) => s.user_id === uid)?.points ?? 0)
       setLoading(false)
@@ -371,7 +377,7 @@ export function CartasSection({
     return () => {
       alive = false
     }
-  }, [pool.id, round])
+  }, [pool.id, round, prevRoundId])
 
   if (loading) {
     return (
@@ -381,7 +387,8 @@ export function CartasSection({
     )
   }
 
-  const playedMatch = matches.find((m) => m.id === myCard?.match_id)
+  const playedMatch =
+    matches.find((m) => m.id === myCard?.match_id) ?? prevMatches.find((m) => m.id === myCard?.match_id)
   const playedTarget = members.find((m) => m.user_id === myCard?.target_user_id)
 
   return (
@@ -454,6 +461,7 @@ export function CartasSection({
         <PlayCardSheet
           card={playThis}
           matches={matches}
+          varMatches={prevMatches}
           members={members}
           myUserId={userId}
           myPoints={myPoints}
@@ -498,9 +506,12 @@ function ExplainSheet({ type, onClose }: { type: CardType; onClose: () => void }
 
 // ---------------- Jugar carta ----------------
 
+const VAR_WINDOW_MS = 24 * 3600_000
+
 function PlayCardSheet({
   card,
   matches,
+  varMatches,
   members,
   myUserId,
   myPoints,
@@ -509,6 +520,7 @@ function PlayCardSheet({
 }: {
   card: Card
   matches: Match[]
+  varMatches?: Match[]
   members: Member[]
   myUserId: string
   myPoints: number
@@ -524,15 +536,33 @@ function PlayCardSheet({
   const [error, setError] = useState<string | null>(null)
 
   const openMatches = matches.filter((m) => new Date(m.kickoff).getTime() > Date.now())
-  const finishedMatches = matches.filter((m) => m.status === 'FINISHED')
-  const matchList = meta.varPick ? finishedMatches : openMatches
+  // VAR: finalizados de esta jornada y la anterior, solo dentro de la
+  // ventana (24 h tras el último finalizado de SU jornada). El backend
+  // es la fuente de verdad; esto solo filtra la lista.
+  const varEligible = useMemo(() => {
+    if (!meta.varPick) return []
+    const seen = new Map<number, Match>()
+    for (const m of [...matches, ...(varMatches ?? [])]) if (!seen.has(m.id)) seen.set(m.id, m)
+    const lastFin = new Map<number, number>()
+    for (const m of seen.values()) {
+      if (m.status !== 'FINISHED') continue
+      const t = new Date(m.kickoff).getTime()
+      if (!lastFin.has(m.round_id) || t > lastFin.get(m.round_id)!) lastFin.set(m.round_id, t)
+    }
+    const now = Date.now()
+    return [...seen.values()]
+      .filter((m) => m.status === 'FINISHED' && now <= (lastFin.get(m.round_id) ?? -Infinity) + VAR_WINDOW_MS)
+      .sort((a, b) => +new Date(b.kickoff) - +new Date(a.kickoff))
+  }, [matches, varMatches, meta.varPick])
+  const matchList = meta.varPick ? varEligible : openMatches
   const rivals = members.filter((m) => m.user_id !== myUserId)
   const candidates = meta.memberPick
     ? meta.memberPick.includeSelf
       ? members
       : rivals
     : rivals
-  const selMatch = matches.find((m) => m.id === matchId) ?? null
+  const selMatch =
+    matches.find((m) => m.id === matchId) ?? (varMatches ?? []).find((m) => m.id === matchId) ?? null
 
   // Opciones del VAR: +1/-1 a un equipo sin bajar de 0.
   const varOptions =
@@ -616,7 +646,7 @@ function PlayCardSheet({
             {matchList.length === 0 && (
               <p className="text-sm text-ink-faint">
                 {meta.varPick
-                  ? 'Aún no hay partidos jugados en esta jornada.'
+                  ? 'No hay partidos en plazo de VAR (24 h tras el último finalizado).'
                   : 'No quedan partidos por empezar en esta jornada.'}
               </p>
             )}

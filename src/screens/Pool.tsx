@@ -14,7 +14,7 @@ import {
   getProfile,
   getRoundStandings,
   getStandings,
-  getVisibleCards,
+  getVisibleCardsForMatches,
   listMatchMeta,
   listRounds,
   savePrediction,
@@ -142,6 +142,13 @@ export default function Pool() {
   const selectedRound = selectedSegment
     ? rounds.find((r) => r.id === selectedSegment.roundId) ?? null
     : null
+  // Jornada inmediatamente anterior (por deadline): el VAR puede apuntar a
+  // sus finalizados en plazo aunque la app ya vaya por la siguiente.
+  const prevRoundId = useMemo(() => {
+    if (!latestRound) return null
+    const i = rounds.findIndex((r) => r.id === latestRound.id)
+    return i > 0 ? rounds[i - 1].id : null
+  }, [rounds, latestRound])
 
   return (
     <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1280px]">
@@ -209,7 +216,7 @@ export default function Pool() {
             ))}
           {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
           {section === 'cartas' && (
-            <CartasSection pool={pool} round={latestRound} myCard={myCard} onCardChanged={refreshCard} />
+            <CartasSection pool={pool} round={latestRound} prevRoundId={prevRoundId} myCard={myCard} onCardChanged={refreshCard} />
           )}
         </div>
         {section === 'predicciones' && !taberna && (
@@ -495,7 +502,7 @@ function PrediccionesSection({
       const ms = await getMatches(round.id)
       const [ps, vc, mem, prof, ff] = await Promise.all([
         getMyPredictions(pool.id, uid, ms.map((m) => m.id)),
-        getVisibleCards(pool.id, round.id),
+        getVisibleCardsForMatches(pool.id, ms.map((m) => m.id)),
         getMembers(pool.id),
         getProfile(uid).catch(() => null),
         getFinalissima(pool.id, round.id).catch(() => [] as Finalissima[]),
@@ -534,7 +541,7 @@ function PrediccionesSection({
         .then((ms) => {
           setMatches(ms)
           if (userId) getMyPredictions(pool.id, userId, ms.map((m) => m.id)).then(setPreds).catch(() => {})
-          getVisibleCards(pool.id, round.id).then(setCards).catch(() => {})
+          getVisibleCardsForMatches(pool.id, ms.map((m) => m.id)).then(setCards).catch(() => {})
           getFinalissima(pool.id, round.id).then(setFin).catch(() => {})
         })
         .catch(() => {})
