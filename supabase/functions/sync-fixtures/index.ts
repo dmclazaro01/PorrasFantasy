@@ -95,22 +95,18 @@ Deno.serve(async (req: Request) => {
     for (const [md, ms] of [...byMatchday.entries()].sort((a, b) => a[0] - b[0])) {
       const deadline = ms.map((m) => m.utcDate).sort()[0]
       const roundName = `Jornada ${md}`
-      const { data: existing } = await db
+      // Upsert atómico por (competition_id, name): a prueba de ejecuciones
+      // solapadas. El SELECT-then-INSERT anterior duplicaba jornadas cuando
+      // dos ejecuciones se solapaban (ver migración 0038).
+      const { data: upserted, error } = await db
         .from('rounds')
+        .upsert(
+          { competition_id: comp.id, name: roundName, deadline },
+          { onConflict: 'competition_id,name' },
+        )
         .select('id')
-        .eq('competition_id', comp.id)
-        .eq('name', roundName)
-        .maybeSingle()
-      if (existing) {
-        roundIdByMatchday.set(md, existing.id)
-        await db.from('rounds').update({ deadline }).eq('id', existing.id)
-      } else {
-        const { data: ins, error } = await db
-          .from('rounds')
-          .insert({ competition_id: comp.id, name: roundName, deadline })
-          .select('id')
-          .single()
-        if (!error && ins) roundIdByMatchday.set(md, ins.id)
+      if (!error && upserted && upserted.length > 0) {
+        roundIdByMatchday.set(md, upserted[0].id as number)
       }
     }
 
