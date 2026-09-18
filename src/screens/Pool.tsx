@@ -120,6 +120,16 @@ export default function Pool() {
     }
   }
 
+  // Jornada inmediatamente anterior (por deadline): el VAR puede apuntar a
+  // sus finalizados en plazo aunque la app ya vaya por la siguiente.
+  // Va ANTES de los returns: los hooks no pueden ir después de un return
+  // condicional (React #310).
+  const prevRoundId = useMemo(() => {
+    if (!latestRound) return null
+    const i = rounds.findIndex((r) => r.id === latestRound.id)
+    return i > 0 ? rounds[i - 1].id : null
+  }, [rounds, latestRound])
+
   if (notFound) {
     return (
       <div className="flex flex-1 flex-col">
@@ -142,13 +152,6 @@ export default function Pool() {
   const selectedRound = selectedSegment
     ? rounds.find((r) => r.id === selectedSegment.roundId) ?? null
     : null
-  // Jornada inmediatamente anterior (por deadline): el VAR puede apuntar a
-  // sus finalizados en plazo aunque la app ya vaya por la siguiente.
-  const prevRoundId = useMemo(() => {
-    if (!latestRound) return null
-    const i = rounds.findIndex((r) => r.id === latestRound.id)
-    return i > 0 ? rounds[i - 1].id : null
-  }, [rounds, latestRound])
 
   return (
     <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1280px]">
