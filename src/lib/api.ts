@@ -540,6 +540,25 @@ export async function ensureMyCard(poolId: string, roundId: number): Promise<Car
   return (data ?? null) as Card | null
 }
 
+/**
+ * Mi carta de una jornada SIN repartirla: solo lectura. Para ver (y jugar
+ * si está en plazo) la carta de una jornada ya seleccionada que no es la
+ * actual — repartirla al mirar rondas futuras sería regalarla antes de hora.
+ */
+export async function getMyCard(poolId: string, roundId: number): Promise<Card | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data, error } = await supabase
+    .from('cards')
+    .select('*')
+    .eq('pool_id', poolId)
+    .eq('round_id', roundId)
+    .eq('owner_id', user.id)
+    .maybeSingle()
+  if (error) throw error
+  return (data ?? null) as Card | null
+}
+
 export async function playCard(input: {
   cardId: number
   matchId: number | null

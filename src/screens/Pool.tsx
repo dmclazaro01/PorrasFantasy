@@ -8,6 +8,7 @@ import {
   getBote,
   getFinalissima,
   getMatches,
+  getMyCard,
   getMyPredictions,
   getMembers,
   getPool,
@@ -50,6 +51,8 @@ export default function Pool() {
   const [selectedSegKey, setSelectedSegKey] = useState<string>('')
   const [latestRound, setLatestRound] = useState<Round | null>(null)
   const [myCard, setMyCard] = useState<Card | null>(null)
+  // Carta de la jornada que se está MIRANDO (puede no ser la actual).
+  const [viewCard, setViewCard] = useState<Card | null>(null)
   const [loadedRounds, setLoadedRounds] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -102,6 +105,10 @@ export default function Pool() {
 
   function refreshCard() {
     if (pool && latestRound) ensureMyCard(pool.id, latestRound.id).then(setMyCard).catch(() => {})
+    if (pool && viewedRound && viewedRound.id !== latestRound?.id) {
+      getMyCard(pool.id, viewedRound.id).then(setViewCard).catch(() => {})
+    }
+    // Si se mira la actual, el efecto sobre myCard ya actualiza viewCard.
   }
 
   async function share() {
@@ -120,15 +127,43 @@ export default function Pool() {
     }
   }
 
-  // Jornada inmediatamente anterior (por deadline): el VAR puede apuntar a
-  // sus finalizados en plazo aunque la app ya vaya por la siguiente.
+  // Jornada que se está mirando: la seleccionada en la tira, o la actual.
+  // (Antes de los returns: de aquí cuelgan hooks.)
+  const selectedSegment = segments.find((s) => s.key === selectedSegKey) ?? null
+  const selectedRound = selectedSegment
+    ? rounds.find((r) => r.id === selectedSegment.roundId) ?? null
+    : null
+  const viewedRound = selectedRound ?? latestRound
+
+  // Jornada inmediatamente anterior A LA MIRADA (por deadline): el VAR puede
+  // apuntar a sus finalizados en plazo aunque la app ya vaya por la siguiente.
   // Va ANTES de los returns: los hooks no pueden ir después de un return
   // condicional (React #310).
   const prevRoundId = useMemo(() => {
-    if (!latestRound) return null
-    const i = rounds.findIndex((r) => r.id === latestRound.id)
+    if (!viewedRound) return null
+    const i = rounds.findIndex((r) => r.id === viewedRound.id)
     return i > 0 ? rounds[i - 1].id : null
-  }, [rounds, latestRound])
+  }, [rounds, viewedRound])
+
+  // Carta de la jornada mirada, solo lectura (no reparte futuras).
+  useEffect(() => {
+    if (!pool || !viewedRound || viewedRound.id === latestRound?.id) {
+      setViewCard(myCard)
+      return
+    }
+    setViewCard(null)
+    let alive = true
+    getMyCard(pool.id, viewedRound.id)
+      .then((c) => {
+        if (alive) setViewCard(c)
+      })
+      .catch(() => {
+        if (alive) setViewCard(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [pool, viewedRound, latestRound?.id, myCard])
 
   if (notFound) {
     return (
@@ -147,11 +182,6 @@ export default function Pool() {
       </div>
     )
   }
-
-  const selectedSegment = segments.find((s) => s.key === selectedSegKey) ?? null
-  const selectedRound = selectedSegment
-    ? rounds.find((r) => r.id === selectedSegment.roundId) ?? null
-    : null
 
   return (
     <div className="flex flex-1 flex-col lg:mx-auto lg:w-full lg:max-w-[1280px]">
@@ -198,9 +228,7 @@ export default function Pool() {
       {/* Desktop: selector de sección + tira de jornadas (el PoolNav móvil está oculto en lg) */}
       <div className="hidden lg:block lg:space-y-3 lg:px-6 lg:pt-4">
         <SectionTabs section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
-        {section !== 'cartas' && (
-          <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
-        )}
+        <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
       </div>
 
       <div
@@ -219,7 +247,7 @@ export default function Pool() {
             ))}
           {section === 'ranking' && <RankingSection pool={pool} round={selectedRound} />}
           {section === 'cartas' && (
-            <CartasSection pool={pool} round={latestRound} prevRoundId={prevRoundId} myCard={myCard} onCardChanged={refreshCard} />
+            <CartasSection pool={pool} round={viewedRound} prevRoundId={prevRoundId} myCard={viewCard} onCardChanged={refreshCard} />
           )}
         </div>
         {section === 'predicciones' && !taberna && (
@@ -233,9 +261,7 @@ export default function Pool() {
       </div>
 
       <div className="app-bottombar safe-bottom border-t border-line bg-surface/95 backdrop-blur lg:hidden">
-        {section !== 'cartas' && (
-          <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
-        )}
+        <JornadaBar segments={segments} selectedKey={selectedSegKey} onSelect={setSelectedSegKey} />
         <PoolNav section={section} setSection={setSection} hasCard={myCard?.status === 'GRANTED'} />
       </div>
     </div>
