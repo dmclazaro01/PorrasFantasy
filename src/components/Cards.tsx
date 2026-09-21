@@ -6,7 +6,7 @@ import {
   getMatches,
   getMatchPredictions,
   getMembers,
-  getStandings,
+  getRoundStandings,
   getUserHistory,
   playCard,
   type Card,
@@ -75,7 +75,7 @@ export const CARD_META: Record<
   },
   DOBLE: {
     name: 'Doble o nada',
-    desc: 'Apuestas puntos a clavar el marcador exacto. Si lo clavas, ganas lo apostado. Si no, pierdes la mitad.',
+    desc: 'Apuestas puntos a clavar el marcador exacto: si lo clavas ganas lo apostado y si no pierdes la mitad. Solo puedes apostar los puntos que llevas en esa jornada, no los de la general.',
     reveal: 'Se resuelve al acabar el partido.',
     needsRival: false,
     needsBet: true,
@@ -358,19 +358,20 @@ export function CartasSection({
     async function load() {
       const { data } = await supabase.auth.getUser()
       const uid = data.user?.id ?? ''
-      const [ms, prev, mem, st] = await Promise.all([
+      const [ms, prev, mem, rk] = await Promise.all([
         round ? getMatches(round.id) : Promise.resolve([]),
         // El VAR puede apuntar a finalizados de la jornada anterior en plazo.
         prevRoundId ? getMatches(prevRoundId).catch(() => [] as Match[]) : Promise.resolve([] as Match[]),
         getMembers(pool.id),
-        getStandings(pool.id),
+        // El DOBLE solo permite apostar los puntos de ESA jornada.
+        round ? getRoundStandings(pool.id, round.id).catch(() => []) : Promise.resolve([]),
       ])
       if (!alive) return
       setUserId(uid)
       setMatches(ms)
       setPrevMatches(prev.filter((m) => !ms.some((x) => x.id === m.id)))
       setMembers(mem)
-      setMyPoints(st.find((s) => s.user_id === uid)?.points ?? 0)
+      setMyPoints(rk.find((s) => s.user_id === uid)?.points ?? 0)
       setLoading(false)
     }
     load()
@@ -705,7 +706,7 @@ function PlayCardSheet({
       {meta.needsBet && (
         <div className="mt-5">
           <Field
-            label={`Puntos a apostar (tienes ${myPoints})`}
+            label={`Puntos a apostar de esta jornada (tienes ${myPoints})`}
             type="number"
             min={1}
             max={myPoints}
